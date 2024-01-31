@@ -12,6 +12,7 @@ group "all" {
 		"8-1-33",
 		"8-1-35",
 		"8-1-36",
+		"8-1-37",
 		"iiot-8-1-25",
 		"iiot-8-1-26",
 		"iiot-8-1-27",
@@ -45,7 +46,8 @@ group "base" {
 		"8-1-32",
 		"8-1-33",
 		"8-1-35",
-		"8-1-36"
+		"8-1-36",
+		"8-1-37"
 	]
 }
 
@@ -87,7 +89,7 @@ variable "BASE_VERSION" {
 }
 
 variable "PATCH_VERSION" {
-    default = 36
+    default = 37
 }
 
 // ###########################################################################################
@@ -215,7 +217,18 @@ target "8-1-36" {
 		IGNITION_VERSION = "8.1.36"
 	}
 	tags = [
-		"${BASE_IMAGE_NAME}:8.1.36",
+		"${BASE_IMAGE_NAME}:8.1.36"
+	]
+}
+
+// This target inherits the 8-1-base and sets the patch to 37
+target "8-1-37" {
+	inherits = ["8-1-base"]
+	args = {
+		IGNITION_VERSION = "8.1.37"
+	}
+	tags = [
+		"${BASE_IMAGE_NAME}:8.1.37",
 		"${BASE_IMAGE_NAME}:latest"
 	]
 }
