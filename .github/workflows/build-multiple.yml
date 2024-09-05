@@ -30,15 +30,20 @@ jobs:
     steps:
       - id: set-versions
         run: |
-          # Define versions to ignore because they dont exist
-          ignore_versions=(34 40 29)
-          
+          # Define versions to ignore
+          ignore_versions=(29 34 40)
+
+          # Convert ignore_versions array to JSON array
+          ignore_json=$(printf '%s\n' "${ignore_versions[@]}" | jq -R . | jq -s .)
+
           # Generate sequence and filter out ignored versions
           versions=$(seq ${{ inputs.start-version }} ${{ inputs.end-version }} | \
-                     jq -R -s -c 'split("\n")[:-1] | 
-                                  map(select(. != "" and 
-                                             (. | tonumber) != 40))')
-          
+                    jq -R -s --argjson ignore "$ignore_json" \
+                    'split("\n")[:-1] | 
+                      map(select(. != "" and 
+                                (. | tonumber) as $n | 
+                                ($ignore | index($n) | not)))')
+
           echo "versions=$versions" >> $GITHUB_OUTPUT
 
   build:
