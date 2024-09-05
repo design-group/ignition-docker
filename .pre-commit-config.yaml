@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: Shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+        files: \.sh$
+      - id: markdownlint
+        name: markdownlint
+        entry: markdownlint
+        language: system
+        types: [markdown]
+        args: [
+          --config=.markdownlint.json, 
+          --ignore-path=.markdownlintignore
+          ]

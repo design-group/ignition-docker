@@ -1,0 +1,8 @@
+# Testing Folder
+test-build
+
+# MacOS Files
+.DS_Store
+
+# VSCode Files
+*.code-workspace
