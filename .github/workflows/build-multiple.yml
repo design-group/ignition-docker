@@ -53,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 2  # Limit concurrent jobs
       matrix:
         version: ${{ fromJson(needs.prepare.outputs.versions) }}
 
@@ -74,17 +75,24 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push
-      uses: docker/bake-action@v5.7.0
+    - name: Build and push with retry
+      uses: nick-invision/retry@v2
       with:
-        files: |
-          ./docker-bake.hcl
-        set: |
-          *.args.IGNITION_VERSION=${{ inputs.base-version }}.${{ matrix.version }}
-          *.tags=ghcr.io/${{ github.repository }}:${{ inputs.base-version }}.${{ matrix.version }}
-          *.cache-from=type=gha
-          *.cache-to=type=gha,mode=max
-        push: ${{ inputs.push }}
+        timeout_minutes: 10
+        max_attempts: 3
+        retry_on: error
+        command: |
+          docker buildx bake \
+            --file ./docker-bake.hcl \
+            --set '*.args.IGNITION_VERSION=${{ inputs.base-version }}.${{ matrix.version }}' \
+            --set '*.tags=ghcr.io/${{ github.repository }}:${{ inputs.base-version }}.${{ matrix.version }}' \
+            --set '*.cache-from=type=gha' \
+            --set '*.cache-to=type=gha,mode=max' \
+            ${{ inputs.push && '--push' || '' }} \
+            default
+
+    - name: Delay between builds
+      run: sleep 30
 
   summary:
     name: Build Summary
