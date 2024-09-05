@@ -13,7 +13,7 @@ else
     build_command+=" --load"
 fi
 
-for i in $(seq $START_VERSION $END_VERSION); do
+for i in $(seq "$START_VERSION" "$END_VERSION"); do
     version="${BASE_VERSION}.${i}"
     build_command+=" --set ignition.args.IGNITION_VERSION=$version --set ignition.tags=ghcr.io/keith-gamble/ignition-docker:$version"
 done
@@ -21,4 +21,5 @@ done
 build_command+=" ignition"
 
 echo "Executing: $build_command"
-eval $build_command
+
+eval "$build_command"
