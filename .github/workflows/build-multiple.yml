@@ -24,7 +24,7 @@ on:
         default: true
 
 env:
-  ignore-versions: '29,34,40'
+  ignore-versions: '6,29,34,40'
 
 jobs:
   prepare:
