@@ -19,7 +19,7 @@ on:
         description: 'Push to Container Registry'
         required: true
         type: boolean
-        default: false
+        default: true
 
 jobs:
   prepare:
@@ -31,7 +31,7 @@ jobs:
       - id: set-versions
         run: |
           # Define versions to ignore because they dont exist
-          ignore_versions=(40)
+          ignore_versions=(34 40 29)
           
           # Generate sequence and filter out ignored versions
           versions=$(seq ${{ inputs.start-version }} ${{ inputs.end-version }} | \
