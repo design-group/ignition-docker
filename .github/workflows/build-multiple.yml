@@ -1,5 +1,3 @@
-name: Build Multiple Ignition Docker Images
-
 on:
   workflow_dispatch:
     inputs:
@@ -16,6 +14,8 @@ on:
         required: true
         type: boolean
         default: false
+
+name: "Build Multiple Ignition Docker Images"
 
 jobs:
   build:

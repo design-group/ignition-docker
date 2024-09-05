@@ -1,5 +1,3 @@
-name: "Build Single Ignition Docker Image"
-
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +10,8 @@ on:
         required: true
         type: boolean
         default: true  
+
+name: "Build Single Ignition Docker Image"
 
 jobs:
   build:
