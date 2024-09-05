@@ -23,6 +23,9 @@ on:
         type: boolean
         default: true
 
+env:
+  ignore-versions: '29,34,40'
+
 jobs:
   prepare:
     name: Define Version List
@@ -32,20 +35,16 @@ jobs:
     steps:
       - id: set-versions
         run: |
-          # Define versions to ignore
-          ignore_versions=(29 34 40)
-
-          # Convert ignore_versions array to JSON array
-          ignore_json=$(printf '%s\n' "${ignore_versions[@]}" | jq -R . | jq -s .)
-
+          # Convert comma-separated ignore versions to array
+          IFS=',' read -ra ignore_versions <<< "${{ env.ignore-versions }}"
+          
+          # Generate jq filter string dynamically
+          jq_filter="map(select(. != \"\" and (. | tonumber) as \$n | $(printf '($n != %s) and ' "${ignore_versions[@]}" | sed 's/ and $//'))"
+          
           # Generate sequence and filter out ignored versions
           versions=$(seq ${{ inputs.start-version }} ${{ inputs.end-version }} | \
-                    jq -R -s --argjson ignore "$ignore_json" \
-                    'split("\n")[:-1] | 
-                      map(select(. != "" and 
-                                (. | tonumber) as $n | 
-                                ($ignore | index($n) | not)))')
-
+                     jq -R -s -c "split(\"\n\")[:-1] | $jq_filter)")
+          
           echo "versions=$versions" >> $GITHUB_OUTPUT
 
   build:
