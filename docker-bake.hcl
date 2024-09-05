@@ -2,8 +2,8 @@ variable "IGNITION_VERSION" {
     default = "8.1.43"
 }
 
-variable "BASE_IMAGE" {
-    default = "ghcr.io/username/ignition-docker"
+variable "BASE_IMAGE_PATH" {
+    default = "ghcr.io/username/ignition-docker/ignition"
 }
 
 target "default" {
@@ -17,6 +17,6 @@ target "default" {
         "linux/arm",
     ]
     tags = [
-        "${BASE_IMAGE}:${IGNITION_VERSION}"
+        "${BASE_IMAGE_PATH}:${IGNITION_VERSION}"
     ]
 }
