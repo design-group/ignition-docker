@@ -3,6 +3,7 @@
 START_VERSION=${1:-22}
 END_VERSION=${2:-42}
 PUSH=${3:-false}
+BASE_IMAGE=${4:-"ignition-docker"}
 BASE_VERSION="8.1"
 
 build_command="docker buildx bake --file ./docker-bake.hcl"
@@ -15,7 +16,7 @@ fi
 
 for i in $(seq "$START_VERSION" "$END_VERSION"); do
     version="${BASE_VERSION}.${i}"
-    build_command+=" --set default.args.IGNITION_VERSION=$version --set default.tags=ghcr.io/keith-gamble/ignition-docker/ignition:$version"
+    build_command+=" --set default.args.IGNITION_VERSION=$version --set default.tags=$BASE_IMAGE:$version"
 done
 
 build_command+=" default"

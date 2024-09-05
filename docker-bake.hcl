@@ -3,7 +3,7 @@ variable "IGNITION_VERSION" {
 }
 
 variable "BASE_IMAGE_NAME" {
-    default = "ghcr.io/keith-gamble/ignition-docker/ignition"
+    default = "ignition-docker"
 }
 
 target "default" {
