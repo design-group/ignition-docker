@@ -1,6 +1,6 @@
 # bwdesigngroup/ignition-docker
 
-[![8.1 Build Status](https://github.com/bwdesigngroup/ignition-docker/actions/workflows/build-individual.yml/badge.svg)](https://github.com/design-group/ignition-docker/actions)
+[![8.1 Build Status](https://github.com/design-group/ignition-docker/actions/workflows/build-individual.yml/badge.svg)](https://github.com/design-group/ignition-docker/actions)
 [![Docker Stars](https://img.shields.io/docker/stars/bwdesigngroup/ignition-docker.svg)](https://hub.docker.com/r/bwdesigngroup/ignition-docker)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bwdesigngroup/ignition-docker.svg)](https://hub.docker.com/r/bwdesigngroup/ignition-docker)
 
