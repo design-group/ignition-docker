@@ -3,6 +3,10 @@ name: Build Multiple Ignition Docker Images
 on:
   workflow_dispatch:
     inputs:
+      base-version:
+        description: 'Base version for range build (e.g., 8.1)'
+        required: true
+        default: '8.1'      
       start-version:
         description: 'Start version for range build (e.g., 22 for 8.1.22)'
         required: true
@@ -18,20 +22,36 @@ on:
         default: false
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.set-versions.outputs.versions }}
+    steps:
+      - id: set-versions
+        run: |
+          versions=$(seq ${{ inputs.start-version }} ${{ inputs.end-version }} | jq -R -s -c 'split("\n")[:-1]')
+          echo "versions=$versions" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ${{ fromJson(needs.prepare.outputs.versions) }}
 
     permissions:
-        contents: read
-        packages: write
+      contents: read
+      packages: write
       
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
+    - name: Buildx Setup
       uses: docker/setup-buildx-action@v3.6.1
     
     - name: Login to Container Registry
+      if: ${{ inputs.push == 'true' }}
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
@@ -39,8 +59,13 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and push
-      run: |
-        chmod +x ./scripts/build-ignition-versions.sh
-        ./scripts/build-ignition-versions.sh ${{ inputs.start-version }} ${{ inputs.end-version }} ${{ inputs.push }} "ghcr.io/${{ github.repository }}"
-      env:
-        DOCKER_CLI_EXPERIMENTAL: enabled
+      uses: docker/bake-action@v5.7.0
+      with:
+        files: |
+          ./docker-bake.hcl
+        set: |
+          *.args.IGNITION_VERSION=${{ inputs.base-version }}.${{ matrix.version }}
+          *.tags=ghcr.io/${{ github.repository }}:${{ inputs.base-version }}.${{ matrix.version }}
+          *.cache-from=type=gha
+          *.cache-to=type=gha,mode=max
+        push: ${{ inputs.push }}
