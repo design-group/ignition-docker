@@ -52,6 +52,7 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         version: ${{ fromJson(needs.prepare.outputs.versions) }}
 
@@ -84,3 +85,18 @@ jobs:
           *.cache-from=type=gha
           *.cache-to=type=gha,mode=max
         push: ${{ inputs.push }}
+
+  summary:
+    name: Build Summary
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Check build results
+      run: |
+        if [[ "${{ needs.build.result }}" == "success" ]]; then
+          echo "All builds completed successfully!"
+        else
+          echo "Some builds failed. Please check the individual job logs for details."
+          exit 1
+        fi
