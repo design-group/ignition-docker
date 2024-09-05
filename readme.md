@@ -1,6 +1,6 @@
 # bwdesigngroup/ignition-docker
 
-[![8.1 Build Status](https://github.com/thirdgen88/ignition-docker/actions/workflows/multibuild-8.1.yml/badge.svg)](https://github.com/design-group/ignition-docker/actions)
+[![8.1 Build Status](https://github.com/bwdesigngroup/ignition-docker/actions/workflows/build-individual.yml/badge.svg)](https://github.com/design-group/ignition-docker/actions)
 [![Docker Stars](https://img.shields.io/docker/stars/bwdesigngroup/ignition-docker.svg)](https://hub.docker.com/r/bwdesigngroup/ignition-docker)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bwdesigngroup/ignition-docker.svg)](https://hub.docker.com/r/bwdesigngroup/ignition-docker)
 
@@ -8,9 +8,9 @@
 
 The purpose of this image is to provide a quick way to spin up docker containers that include some necessary creature comforts for version control, theme management, and easy interaction with the required file system components for an Ignition gateway.
 
-This image is automatically built for versions 8.1.13-8.1.36, new versions will be updated, but any features are subject to change with later versions. Upon a new pull request, if a valid build file is modified, it will trigger a build test pipeline that verifies the image still operates as expected.
+This image is automatically built for the latest version of Ignition, new versions will be updated, but any features are subject to change with later versions. Upon a new pull request, if a valid build file is modified, it will trigger a build test pipeline that verifies the image still operates as expected.
 
-If using a Windows device, you will want to [Set up WSL](docs/setting-up-wsl.md)
+Previous versions of Ignition can be built with the `workflows/build-multiple.yml` workflow. This will build the image for all versions in the range provided.
 
 ___
 
@@ -18,7 +18,7 @@ ___
 
 If you're looking at this repository from GitHub, note that the docker image is actually `bwdesigngroup/ignition-docker`, not `design-group/ignition-docker`.
 
-When pulling the docker image, note that using the copy link from the home page (`docker pull bwdesigngroup/ignition-docker`) will automatically pull the most recent version of Ignition configured in the image. For example `:latest` may pull version `8.1.36` as of the time of writing.
+When pulling the docker image, note that using the copy link from the home page (`docker pull bwdesigngroup/ignition-docker`) will automatically pull the most recent version of Ignition configured in the image. For example `:latest` may pull version `8.1.42` as of the time of writing.
 
 ## File Access
 
@@ -27,7 +27,6 @@ This custom build creates a symlink in the `/workdir` directory to a few of the 
 | --- | --- |
 | `/usr/local/bin/ignition/data/projects` | `SYMLINK_PROJECTS` |
 | `/usr/local/bin/ignition/data/modules` | `SYMLINK_THEMES` |
-| `/usr/local/bin/ignition/data/logback.xml` | `SYMLINK_LOGBACK` |
 
 To disable one of the symlinks, set the environment variable to `false`. For example, to disable the symlink to the `projects` directory, set `SYMLINK_PROJECTS=false`
 
@@ -54,18 +53,11 @@ This image also preloads the following environment variables by default:
 | `IGNITION_UID` | 8.1.13 | `1000` |
 | `IGNITION_GID` | 8.1.13 | `1000` |
 | `PROJECT_SCAN_FREQUENCY` | 8.1.13 | `10` |
-| `SYMLINK_LOGBACK` | 8.1.13 | `true` |
 | `SYMLINK_PROJECTS` | 8.1.13 | `true` |
 | `SYMLINK_THEMES` | 8.1.13 | `true` |
-| `SYMLINK_GITIGNORE` | 8.1.13 | `true` |
 | `ADDITIONAL_DATA_FOLDERS` | 8.1.13 | `""` |
 | `DEVELOPER_MODE` | 8.1.13 | `N` |
-| `ENABLE_LOCALTEST_ADDRESS` | 8.1.13 | `Y` |
 | `DISABLE_QUICKSTART` | 8.1.23 | `true` |
-
-### logback.xml
-
-The included `logback.xml` file is a default file, it is just mapped into the working directory so that it can be customized if desired.
 
 ### Additional Config Folders
 
@@ -73,32 +65,9 @@ Added an environment variable that allows the user to map application config fil
 
 ### Secondary Images
 
-This image also includes a few other images that are useful for development that involves third party igniiton modules being pre-installed.
+The [previous version of this repository](https://github.com/bwdesigngroup/ignition-docker-archive) used to include versions for `-iiot` and `-mes`. This essentially just mapped in the corresponding modules, however it was finicky, and didnt always work as expected because module versions for Sepasoft arent identical to Ignition versions. 
 
-#### ignition-docker-iiot
-
-This image is a derivative of the `inductiveautomation/ignition` image, and includes the following modules pre-installed:
-
-	- `MQTT Transmission`
-	- `MQTT Engine`
-	- `MQTT Distributor`
-
-It takes the `IIOT_MODULES_ENABLED` environment variable that is a comma separated list of modules to enable. For example, to enable all three modules, set the environment variable `IIOT_MODULES_ENABLED=mqtt-transmission,mqtt-engine,mqtt-distributor` to the `docker-compose.yml` file. This image only supports version 8.1.36, if a different version is needed, please open an issue.
-
-#### ignition-docker-mes
-
-This image is a derivative of the `inductiveautomation/ignition` image, and includes the following modules pre-installed:
-
-- `WebService`
-- `Production`
-- `Settings and Changeover`
-- `Batch`
-- `SPC`
-- `Document Management`
-- `OEE Downtime`
-- `Track and Trace`
-
-It takes the `MES_MODULES_ENABLED` environment variable that is a comma separated list of modules to enable. For example, to enable the Settings and Changeover and Batch Procedure modules, set the environment variable `MES_MODULES_ENABLED=production,batch` to the `docker-compose.yml` file. This image only supports version 8.1.35, if a different version is needed, please open an issue.
+Because of this, the decision was made to remove these images, and instead the best practice is to use the [Third Party Modules](#third-party-modules) section to map in the modules you need. This allows for more flexibility and control over the modules that are being used and their versions.
 
 ### Third Party Modules
 
@@ -119,8 +88,6 @@ ___
 	services:
 	  gateway:
 		  image: bwdesigngroup/ignition-docker:8.1.31
-		  ports:
-		  - 80:8088
 		  # # In order to use this volume, you must first create the directory `data-folder` next to the docker-compose.yml file
 		  # volumes:
 		  #   - ./data-folder:/workdir
