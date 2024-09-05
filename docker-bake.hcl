@@ -3,7 +3,7 @@ variable "IGNITION_VERSION" {
 }
 
 variable "BASE_IMAGE_PATH" {
-    default = "ghcr.io/username/ignition-docker/ignition"
+    default = "bwdesigngroup/ignition-docker"
 }
 
 target "default" {
