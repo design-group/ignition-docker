@@ -6,7 +6,7 @@ variable "BASE_IMAGE_NAME" {
     default = "ghcr.io/keith-gamble/ignition-docker/ignition"
 }
 
-target "ignition" {
+target "default" {
     context = "."
     args = {
         IGNITION_VERSION = "${IGNITION_VERSION}"
