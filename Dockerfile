@@ -22,6 +22,5 @@ ENV SYMLINK_THEMES ${SYMLINK_THEMES:-true}
 ENV ADDITIONAL_DATA_FOLDERS ${ADDITIONAL_DATA_FOLDERS:-}
 
 COPY --chmod=0755 ./entrypoint-shim.sh /usr/local/bin/
-COPY ./seed-contents/ /usr/local/bin/seed-contents/
 
 ENTRYPOINT [ "entrypoint-shim.sh" ]
