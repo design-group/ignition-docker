@@ -10,16 +10,18 @@ on:
       start-version:
         description: 'Start version for range build (e.g., 22 for 8.1.22)'
         required: true
-        default: '22'
+        default: 22
+        type: number
       end-version:
         description: 'End version for range build (e.g., 42 for 8.1.42)'
         required: true
-        default: '42'
+        default: 42
+        type: number
       push:
         description: 'Push to Container Registry'
         required: true
         type: boolean
-        default: false
+        default: true
 
 jobs:
   prepare:
@@ -51,7 +53,6 @@ jobs:
       uses: docker/setup-buildx-action@v3.6.1
     
     - name: Login to Container Registry
-      if: ${{ inputs.push == 'true' }}
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
