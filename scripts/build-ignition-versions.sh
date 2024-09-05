@@ -3,7 +3,7 @@
 START_VERSION=${1:-22}
 END_VERSION=${2:-42}
 PUSH=${3:-false}
-BASE_IMAGE=${4:-"ignition-docker"}
+BASE_IMAGE=${4:-"ghcr.io/username/ignition-docker"}
 BASE_VERSION="8.1"
 
 build_command="docker buildx bake --file ./docker-bake.hcl"
@@ -22,5 +22,4 @@ done
 build_command+=" default"
 
 echo "Executing: $build_command"
-
 eval "$build_command"
