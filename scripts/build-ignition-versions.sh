@@ -15,7 +15,7 @@ fi
 
 for i in $(seq "$START_VERSION" "$END_VERSION"); do
     version="${BASE_VERSION}.${i}"
-    build_command+=" --set ignition.args.IGNITION_VERSION=$version --set ignition.tags=ghcr.io/keith-gamble/ignition-docker:$version"
+    build_command+=" --set ignition.args.IGNITION_VERSION=$version --set ignition.tags=ghcr.io/keith-gamble/ignition-docker/ignition:$version"
 done
 
 build_command+=" ignition"
