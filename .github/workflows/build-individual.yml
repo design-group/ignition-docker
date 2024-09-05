@@ -45,4 +45,6 @@ jobs:
           set: |
             *.args.IGNITION_VERSION=${{ inputs.ignition-version }}
             *.tags=ghcr.io/${{ github.repository }}:${{ inputs.ignition-version }}
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
           push: ${{ inputs.push }}
