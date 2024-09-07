@@ -6,3 +6,5 @@ test-build
 
 # VSCode Files
 *.code-workspace
+
+temp/
