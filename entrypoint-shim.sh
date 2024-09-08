@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# shellcheck source=/usr/local/bin/script-utils.sh
+# shellcheck disable=SC1091
+source /usr/local/bin/script-utils.sh
+
+# Enable error handling
+trap handle_error ERR
+
 args=("$@")
 
 # Declare a map of any potential wrapper arguments to be passed into Ignition upon startup
@@ -11,33 +18,29 @@ declare -A wrapper_args_map=(
 declare -A jvm_args_map=()
 
 main() {
+	log_info "Starting Ignition gateway initialization"
+
 	# Create the data folder for Ignition for any upcoming symlinks
 	mkdir -p "${IGNITION_INSTALL_LOCATION}"/data
+	log_info "Created data folder: ${IGNITION_INSTALL_LOCATION}/data"
 
 	if [ "$SYMLINK_PROJECTS" = "true" ] || [ "$SYMLINK_THEMES" = "true" ]; then
 		# Create the working directory
 		mkdir -p "${WORKING_DIRECTORY}"
+		log_info "Created working directory: ${WORKING_DIRECTORY}"
 
 		# Create the symlink for the projects folder if enabled
-		if [ "$SYMLINK_PROJECTS" = "true" ]; then
-			symlink_projects
-		fi
+		[ "$SYMLINK_PROJECTS" = "true" ] && symlink_projects
 
 		# Create the symlink for the themes folder if enabled
-		if [ "$SYMLINK_THEMES" = "true" ]; then
-			symlink_themes
-		fi
+		[ "$SYMLINK_THEMES" = "true" ] && symlink_themes
 
 		# If there are additional folders to symlink, run the function
-		if [ -n "$ADDITIONAL_DATA_FOLDERS" ]; then
-			setup_additional_folder_symlinks "$ADDITIONAL_DATA_FOLDERS"
-		fi
+		[ -n "$ADDITIONAL_DATA_FOLDERS" ] && setup_additional_folder_symlinks "$ADDITIONAL_DATA_FOLDERS"
 	fi
 
 	# If developer mode is enabled, add the developer mode wrapper arguments
-	if [ "$DEVELOPER_MODE" = "Y" ]; then
-		add_developer_mode_args
-	fi
+	[ "$DEVELOPER_MODE" = "Y" ] && add_developer_mode_args
 
 	# Generate or use provided encoding key
     setup_encoding_key
@@ -54,11 +57,23 @@ main() {
 	# Register admin password
 	register_admin_password
 
+	# Set opcua password
+	opc_ua_password_sync
+
 	# Add database connections
     add_database_connections
 
 	# Add IDP adapters
     add_idp_adapters
+
+	# Add tag providers
+	add_tag_providers
+
+	# Add images to the database
+    add_images_to_idb
+
+	# Set co-branding configuration
+	set_cobranding_properties
 
 	# Set system properties
 	set_system_properties
@@ -66,36 +81,11 @@ main() {
 	# Restore the final gateway backup
 	restore_gateway_backup
 
-	# Convert wrapper args associative array to index array prior to launch
-	local wrapper_args=()
-	for key in "${!wrapper_args_map[@]}"; do
-		wrapper_args+=("${key}=${wrapper_args_map[${key}]}")
-	done
+	# Prepare arguments for launching Ignition
+	prepare_launch_args
 
-	# Convert jvm args associative array to index array prior to launch
-	local jvm_args=()
-	for key in "${!jvm_args_map[@]}"; do
-		jvm_args+=("${key}" "${jvm_args_map[${key}]}")
-	done
-
-	# If "--" is already in the args, insert any jvm args before it, else if it isnt there just append the jvm args
-	if [[ " ${args[*]} " =~ " -- " ]]; then
-		# Insert the jvm args before the "--" in the args array
-		args=("${args[@]/#-- /-- ${jvm_args[*]} }")
-	else
-		# Append the jvm args to the args array
-		args+=("${jvm_args[@]}")
-	fi
-
-	# If "--" is not alraedy in the args, make sure you append it before the wrapper args
-	if [[ ! " ${args[*]} " =~ " -- " ]]; then
-		args+=("--")
-	fi
-
-	# Append the wrapper args to the provided args
-	args+=("${wrapper_args[@]}")
-
-	entrypoint "${args[@]}"
+	# Launch Ignition
+	launch_ignition "${args[@]}"
 }
 
 ################################################################################
@@ -152,10 +142,10 @@ setup_additional_folder_symlinks() {
 	for ADDITIONAL_FOLDER in "${ADDITIONAL_FOLDERS_ARRAY[@]}"; do
 		# If the symlink and folder don't exist, create them
 		if [ ! -L "${IGNITION_INSTALL_LOCATION}"/data/"${ADDITIONAL_FOLDER}" ]; then
-			echo "Creating symlink for ${ADDITIONAL_FOLDER}"
+			log_info "Creating symlink for ${ADDITIONAL_FOLDER}"
 			ln -s "${WORKING_DIRECTORY}"/"${ADDITIONAL_FOLDER}" "${IGNITION_INSTALL_LOCATION}"/data/
 
-			echo "Creating workdir folder for ${ADDITIONAL_FOLDER}"
+			log_info "Creating workdir folder for ${ADDITIONAL_FOLDER}"
 			mkdir -p "${WORKING_DIRECTORY}"/"${ADDITIONAL_FOLDER}"
 		fi
 	done
@@ -177,14 +167,13 @@ add_developer_mode_args() {
 setup_encoding_key() {
 	# Check if the file is empty or doesnt exist 
     if [ ! -s "$GATEWAY_ENCODING_KEY_FILE" ]; then
-        echo "Generating random encoding key..."
         # Generate a 24-byte (48 hex characters) random key
         openssl rand -hex 24 > "$GATEWAY_ENCODING_KEY_FILE"
+		log_warning "No encoded key was provided, the following was generated: $(cat "$GATEWAY_ENCODING_KEY_FILE")"
     fi
-    local GATEWAY_ENCODING_KEY
-	GATEWAY_ENCODING_KEY=$(cat "$GATEWAY_ENCODING_KEY_FILE")
+    GATEWAY_ENCODING_KEY=$(cat "$GATEWAY_ENCODING_KEY_FILE")
+	export GATEWAY_ENCODING_KEY
     export GATEWAY_ENCODING_KEY_ISHEX=true
-    echo "Using encoding key: $GATEWAY_ENCODING_KEY"
 }
 
 ################################################################################
@@ -200,7 +189,7 @@ handle_gateway_backup() {
 		if [ -f "$user_backup" ]; then
 			cp "$user_backup" "$backup_file"
 		else
-			echo "User-provided backup file not found. Using default backup."
+			log_info "User-provided backup file not found. Using default backup."
 			cp /base.gwbk "$backup_file"
 		fi
 	else
@@ -210,9 +199,9 @@ handle_gateway_backup() {
 	# Extract the config.idb from the backup
 	mkdir -p "${IGNITION_INSTALL_LOCATION}/data/db"
 	if unzip -p "$backup_file" db_backup_sqlite.idb >"${IGNITION_INSTALL_LOCATION}/data/db/config.idb"; then
-		echo "Successfully extracted config.idb from backup"
+		log_info "Successfully extracted config.idb from backup"
 	else
-		echo "Failed to extract config.idb from backup"
+		log_error "Failed to extract config.idb from backup"
 		exit 1
 	fi
 
@@ -226,7 +215,7 @@ handle_gateway_backup() {
 copy_modules_to_user_lib() {
 	# Check if there are any .modl files in the modules directory, if not exit
 	if ! ls /modules/*.modl 1>/dev/null 2>&1; then
-		echo "No additional modules found in the /modules directory"
+		log_info "No additional modules found in the /modules directory"
 		return
 	fi
 
@@ -234,7 +223,7 @@ copy_modules_to_user_lib() {
 	cp -r /modules/*.modl "${IGNITION_INSTALL_LOCATION}"/user-lib/modules/
 
 	# Register the modules each in the gateway, so that their certificates are trusted
-	for module in "${IGNITION_INSTALL_LOCATION}"/user-lib/modules/*.modl; do
+	for module in /modules/*.modl; do
 		if [ -f "$module" ]; then
 			/usr/local/bin/register-module.sh -f "$module" -d "$DB_LOCATION"
 		fi
@@ -256,16 +245,19 @@ register_admin_password() {
 }
 
 ################################################################################
+# Set the credentials via the register-password.sh script, so that the gateway does not
+# arbitrary build up temp user sources repeatedly
+################################################################################
+opc_ua_password_sync() {
+	/usr/local/bin/sync-opcua-password.sh
+}
+
+################################################################################
 # Register any user provided database connections
 ################################################################################
 add_database_connections() {
     if [ -d "/init-db-connections" ]; then
-        for connection_file in /init-db-connections/*.sh; do
-            if [ -f "$connection_file" ]; then
-                echo "Adding database connection from file: $connection_file"
-                bash "$connection_file"
-            fi
-        done
+        /usr/local/bin/add-database-connection.sh
     fi
 }
 
@@ -274,14 +266,38 @@ add_database_connections() {
 ################################################################################
 add_idp_adapters() {
     if [ -d "/init-idp-adapters" ]; then
-        for adapter_file in /init-idp-adapters/*.json; do
-            if [ -f "$adapter_file" ]; then
-                echo "Adding IDP adapter from file: $adapter_file"
-                /usr/local/bin/add-idp-adapter.sh "$adapter_file"
-            fi
-        done
+		/usr/local/bin/add-idp-adapters.sh
+	fi
+}
+
+################################################################################
+# Add tag providers from JSON files in the /tag-providers directory
+################################################################################
+add_tag_providers() {
+    if [ -d "/tag-providers" ]; then
+        /usr/local/bin/add-tag-providers.sh
     fi
 }
+
+################################################################################
+# Add images to the internal database
+################################################################################
+add_images_to_idb() {
+	if [ -d "/idb-images" ]; then
+    	/usr/local/bin/add-images-to-idb.sh
+	fi
+}
+
+################################################################################
+# Set co-branding configuration
+################################################################################
+set_cobranding_properties() {
+	if [ -d "/co-branding" ]; then
+		/usr/local/bin/set-cobranding-properties.sh
+	fi
+}
+
+
 
 ################################################################################
 # Set any default gateway system properties
@@ -295,31 +311,69 @@ set_system_properties() {
 # Restore the final gateway backup
 ################################################################################
 restore_gateway_backup() {
-	local backup_file="/tmp/gateway_backup.gwbk"
+    local backup_file="/tmp/gateway_backup.gwbk"
 
-	# Update the config.idb in the backup
-	zip -j -u "$backup_file" "$DB_LOCATION"
+    # Update the config.idb in the backup
+    if zip -j -u "$backup_file" "$DB_LOCATION" > /dev/null 2>&1; then
+        log_info "Updated gateway backup with latest configuration"
+    else
+        log_error "Failed to update gateway backup"
+    fi
 
-	# Add the -r option to the args if it's not already there
-	if [[ ! " ${args[*]} " =~ " -r " ]]; then
-		args+=("-r" "$backup_file")
+    # Add the -r option to the args if it's not already there
+    if [[ ! " ${args[*]} " =~ " -r " ]]; then
+        args+=("-r" "$backup_file")
+    fi
+}
+
+
+################################################################################
+# Prepare the launch arguments for Ignition by converting the associative arrays to index arrays
+################################################################################
+prepare_launch_args() {
+	# Convert wrapper args associative array to index array prior to launch
+	local wrapper_args=()
+	for key in "${!wrapper_args_map[@]}"; do
+		wrapper_args+=("${key}=${wrapper_args_map[${key}]}")
+		log_info "Collected wrapper arg: ${key}=${wrapper_args_map[${key}]}"
+	done
+
+	# Convert jvm args associative array to index array prior to launch
+	local jvm_args=()
+	for key in "${!jvm_args_map[@]}"; do
+		jvm_args+=("${key}" "${jvm_args_map[${key}]}")
+		log_info "Collected JVM arg: ${key} ${jvm_args_map[${key}]}"
+	done
+
+	# If "--" is already in the args, insert any jvm args before it, else if it isn't there just append the jvm args
+	if [[ " ${args[*]} " =~ " -- " ]]; then
+		# Insert the jvm args before the "--" in the args array
+		args=("${args[@]/#-- /-- ${jvm_args[*]} }")
+	else
+		# Append the jvm args to the args array
+		args+=("${jvm_args[@]}")
 	fi
+
+	# If "--" is not already in the args, make sure you append it before the wrapper args
+	[[ ! " ${args[*]} " =~ " -- " ]] && args+=("--")
+
+	# Append the wrapper args to the provided args
+	args+=("${wrapper_args[@]}")
 }
 
 ################################################################################
-# Execute the entrypoint for the container
+# Start the official images entrypoint script
 ################################################################################
-entrypoint() {
-
+launch_ignition() {
 	# Run the entrypoint
-	# Check if docker-entrpoint is not in bin directory
+	# Check if docker-entrypoint is not in bin directory
 	if [ ! -e /usr/local/bin/docker-entrypoint.sh ]; then
 		# Run the original entrypoint script
 		mv docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 	fi
 
-	echo "Running entrypoint with args $*"
+	log_info "Launching Ignition with args: $*"
 	exec docker-entrypoint.sh "$@"
 }
 
-main "${args[*]}"
+main "${args[@]}"

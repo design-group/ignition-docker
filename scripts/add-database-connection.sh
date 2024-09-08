@@ -1,81 +1,96 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
+# shellcheck source=/usr/local/bin/script-utils.sh
+# shellcheck disable=SC1091
+source /usr/local/bin/script-utils.sh
+
+# Enable error handling
+trap handle_error ERR
+
+# Global variables
 DB_LOCATION=${DB_LOCATION:-"${IGNITION_INSTALL_LOCATION}/data/db/config.idb"}
 
-if [ -z "${GATEWAY_ENCODING_KEY:-}" ]; then
-    echo "Error: GATEWAY_ENCODING_KEY is not set"
-    exit 1
-fi
+###############################################################################
+# Main function to process and add database connections
+###############################################################################
+main() {
+	if [ -z "${GATEWAY_ENCODING_KEY:-}" ]; then
+		log_error "GATEWAY_ENCODING_KEY is not set"
+		exit 1
+	fi
 
+	process_connection_files
+}
+
+###############################################################################
+# Process all JSON files in the /init-db-connections directory
+###############################################################################
+process_connection_files() {
+	local json_file
+	for json_file in /init-db-connections/*.json; do
+		if [ -f "$json_file" ]; then
+			if add_database_connection "$json_file"; then
+				log_info "Successfully added database connection from $json_file"
+			else
+				log_error "Failed to add database connection from $json_file"
+			fi
+		fi
+	done
+}
+
+###############################################################################
+# Encode password using GATEWAY_ENCODING_KEY
+###############################################################################
 encode_password() {
-    local password="$1"
-    local encoded_password
-    encoded_password=$(/usr/local/bin/encode-password.sh -k "$GATEWAY_ENCODING_KEY" -p "$password")
-    if ! add_database_connection "$@"; then
-        echo "Error: Failed to encode password. Error was: $encoded_password" >&2
-        return 1
-    fi
-    echo "$encoded_password"
+	local password="$1"
+	local encoded_password
+	encoded_password=$(/usr/local/bin/encode-password.sh -k "$GATEWAY_ENCODING_KEY" -p "$password")
+	echo "$encoded_password"
 }
 
+###############################################################################
+# Get translator ID for a given translator name
+###############################################################################
 get_translator_id() {
-    local translator_name="$1"
-    local translator_id
-    translator_id=$(sqlite3 "$DB_LOCATION" "SELECT DBTRANSLATORS_ID FROM DBTRANSLATORS WHERE NAME='$translator_name';")
-    echo "$translator_id"
+	local translator_name="$1"
+	local translator_id
+	translator_id=$(sqlite3 "$DB_LOCATION" "SELECT DBTRANSLATORS_ID FROM DBTRANSLATORS WHERE NAME='$translator_name';")
+	echo "$translator_id"
 }
 
+###############################################################################
+# Add a database connection from a JSON file
+###############################################################################
 add_database_connection() {
-    local name="$1"
-    local type="$2"
-    local description="$3"
-    local connect_url="$4"
-    local username="$5"
-    local password="$6"
-    local connection_props="${7:-}"
+	local json_file="$1"
+	local json_content
+	json_content=$(cat "$json_file")
 
-    # Get translator ID
-    local translator_id
+	local name type description connect_url username password connection_props
+	name=$(echo "$json_content" | jq -r '.name')
+	type=$(echo "$json_content" | jq -r '.type')
+	description=$(echo "$json_content" | jq -r '.description')
+	connect_url=$(echo "$json_content" | jq -r '.connect_url')
+	username=$(echo "$json_content" | jq -r '.username')
+	password=$(echo "$json_content" | jq -r '.password')
+	connection_props=$(echo "$json_content" | jq -r '.connection_props // ""')
+
+	# Get translator ID
+	local translator_id
 	translator_id=$(get_translator_id "$type")
-    if [ -z "$translator_id" ]; then
-        echo "Error: Driver '$type' not found" >&2
-        return 1
-    fi
+	if [ -z "$translator_id" ]; then
+		log_error "Driver '$type' not found"
+		return 1
+	fi
 
-    # Default values
-    local driver_id="$translator_id"
-    local include_schema_in_table_name="false"
-    local enabled="true"
-    local connection_reset_params=""
-    local default_transaction_level="DEFAULT"
-    local pool_init_size=0
-    local pool_max_active=8
-    local pool_max_idle=8
-    local pool_min_idle=0
-    local pool_max_wait=5000
-    local validation_query="SELECT 1"
-    local test_on_borrow="true"
-    local test_on_return="false"
-    local test_while_idle="false"
-    local eviction_rate=-1
-    local eviction_tests=3
-    local eviction_time=1800000
-    local failover_profile_id=""
-    local failover_mode="STANDARD"
-    local slow_query_log_threshold=60000
-    local validation_sleep_time=10000
+	# Encode password
+	local encoded_password
+	encoded_password=$(encode_password "$password")
 
-    local encoded_password
-    if ! encoded_password=$(encode_password "$password"); then
-        echo "Failed to add database connection due to password encoding error." >&2
-        return 1
-    fi
+	local next_datasource_id
+	next_datasource_id=$(sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX(DATASOURCES_ID)+1, 1) FROM DATASOURCES")
 
-    local next_datasource_id
-	next_datasource_id=$(sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX(DATASOURCES_ID)+1, 1) FROM DATASOURCES")	
-	
-    sqlite3 "$DB_LOCATION" <<EOF
+	sqlite3 "$DB_LOCATION" <<EOF
 INSERT INTO DATASOURCES (
     DATASOURCES_ID, NAME, DESCRIPTION, DRIVERID, TRANSLATORID, INCLUDESCHEMAINTABLENAME,
     CONNECTURL, USERNAME, PASSWORD, PASSWORDE, ENABLED, CONNECTIONPROPS,
@@ -84,23 +99,14 @@ INSERT INTO DATASOURCES (
     TESTONRETURN, TESTWHILEIDLE, EVICTIONRATE, EVICTIONTESTS, EVICTIONTIME,
     FAILOVERPROFILEID, FAILOVERMODE, SLOWQUERYLOGTHRESHOLD, VALIDATIONSLEEPTIME
 ) VALUES (
-    $next_datasource_id, '$name', '$description', $driver_id, $translator_id, '$include_schema_in_table_name',
-    '$connect_url', '$username', '', '$encoded_password', '$enabled', '$connection_props',
-    '$connection_reset_params', '$default_transaction_level', $pool_init_size, $pool_max_active,
-    $pool_max_idle, $pool_min_idle, $pool_max_wait, '$validation_query', '$test_on_borrow',
-    '$test_on_return', '$test_while_idle', $eviction_rate, $eviction_tests, $eviction_time,
-    '$failover_profile_id', '$failover_mode', $slow_query_log_threshold, $validation_sleep_time
+    $next_datasource_id, '$name', '$description', $translator_id, $translator_id, 'false',
+    '$connect_url', '$username', '', '$encoded_password', 'true', '$connection_props',
+    '', 'DEFAULT', 0, 8, 8, 0, 5000, 'SELECT 1', 'true',
+    'false', 'false', -1, 3, 1800000, '', 'STANDARD', 60000, 10000
 );
 UPDATE SEQUENCES SET val=$next_datasource_id WHERE name='DATASOURCES_SEQ';
 EOF
-
-    echo "Database connection '$name' added successfully."
 }
 
-# Usage
-if [ "$#" -lt 6 ]; then
-    echo "Usage: $0 <name> <type> <description> <connect_url> <username> <password> <connection_props>"
-    exit 1
-fi
-
-add_database_connection "$@"
+# Run the main function
+main

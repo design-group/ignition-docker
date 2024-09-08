@@ -1,148 +1,133 @@
 #!/usr/bin/env bash
-set -euo pipefail
-shopt -s inherit_errexit
+
+# shellcheck source=/usr/local/bin/script-utils.sh
+# shellcheck disable=SC1091
+source /usr/local/bin/script-utils.sh
+
+# Enable error handling
+trap handle_error ERR
 
 # Global variables
 declare -u AUTH_SALT
+GATEWAY_ADMIN_USERNAME=""
+SECRET_LOCATION=""
+DB_LOCATION=""
+DB_FILE=""
+verbose=0
 
 ###############################################################################
-# Update an Ignition SQLite Configuration DB with a baseline username/password
-# ----------------------------------------------------------------------------
-# ref: https://gist.github.com/thirdgen88/c4257bd4c47b6cc7194d1f5e7cbd6444
+# Main function to register the password
 ###############################################################################
-function main() {
-  if [ ! -f "${SECRET_LOCATION}" ]; then
-    echo ""
-    return 0  # Silently exit if there is no secret at target path
-  elif [ ! -f "${DB_LOCATION}" ]; then
-    echo "WARNING: ${DB_FILE} not found, skipping password registration"
-    return 0
-  fi
+main() {
+	if [ ! -f "${SECRET_LOCATION}" ]; then
+		return 0 # Silently exit if there is no secret at target path
+	elif [ ! -f "${DB_LOCATION}" ]; then
+		log_warning "${DB_FILE} not found, skipping password registration"
+		return 0
+	fi
 
-  register_password
+	register_password
 }
 
 ###############################################################################
 # Updates the target Config DB with the target username and salted pw hash
 ###############################################################################
-function register_password() {
-  local SQLITE3=( sqlite3 "${DB_LOCATION}" ) password_hash password_input
+register_password() {
+	log_info "Registering Admin Password with Configuration DB"
 
-  echo "Registering Admin Password with Configuration DB"
+	local password_hash password_input
 
-  # Generate Salted PW Hash
-  password_input="$(< "${SECRET_LOCATION}")"
-  if [[ "${password_input}" =~ ^\[[0-9A-F]{8,}][0-9a-f]{64}$ ]]; then
-    debug "Password is already hashed"
-    password_hash="${password_input}"
-  else
-    password_hash=$(generate_salted_hash "$(<"${SECRET_LOCATION}")")
-  fi
+	# Generate Salted PW Hash
+	password_input="$(<"${SECRET_LOCATION}")"
+	if [[ "${password_input}" =~ ^\[[0-9A-F]{8,}][0-9a-f]{64}$ ]]; then
+		[ "$verbose" = 1 ] && log_info "Password is already hashed"
+		password_hash="${password_input}"
+	else
+		password_hash=$(generate_salted_hash "$password_input")
+	fi
 
-  # Update INTERNALUSERTABLE
-  echo "  Setting default admin user to USERNAME='${GATEWAY_ADMIN_USERNAME}' and PASSWORD='${password_hash}'"
-  "${SQLITE3[@]}" "UPDATE INTERNALUSERTABLE SET USERNAME='${GATEWAY_ADMIN_USERNAME}', PASSWORD='${password_hash}' WHERE PROFILEID=1 AND USERID=1"
+	# Update INTERNALUSERTABLE
+	sqlite3 "${DB_LOCATION}" "UPDATE INTERNALUSERTABLE SET USERNAME='${GATEWAY_ADMIN_USERNAME}', PASSWORD='${password_hash}' WHERE PROFILEID=1 AND USERID=1;"
+
+	log_info "Admin password registered successfully"
 }
 
 ###############################################################################
 # Processes password input and translates to salted hash
 ###############################################################################
-function generate_salted_hash() {
-  local auth_pwhash auth_pwsalthash auth_password password_input
-  password_input="${1}"
-  
-  debug "auth_salt is ${AUTH_SALT}"
-  auth_pwhash=$(printf %s "${password_input}" | sha256sum - | cut -c -64)
-  debug "auth_pwhash is ${auth_pwhash}"
-  auth_pwsalthash=$(printf %s "${password_input}${AUTH_SALT}" | sha256sum - | cut -c -64)
-  debug "auth_pwsalthash is ${auth_pwsalthash}"
-  auth_password="[${AUTH_SALT}]${auth_pwsalthash}"
+generate_salted_hash() {
+	local password_input="$1"
+	local auth_password
 
-  echo "${auth_password}"
-}
+	[ "$verbose" = 1 ] && log_info "Generating salted hash with salt: ${AUTH_SALT}"
+	auth_pwsalthash=$(printf %s "${password_input}${AUTH_SALT}" | sha256sum - | cut -c -64)
+	auth_password="[${AUTH_SALT}]${auth_pwsalthash}"
 
-###############################################################################
-# Outputs to stderr
-###############################################################################
-function debug() {
-  # shellcheck disable=SC2236
-  if [ ! -z ${verbose+x} ]; then
-    >&2 echo "  DEBUG: $*"
-  fi
+	echo "${auth_password}"
 }
 
 ###############################################################################
 # Print usage information
 ###############################################################################
-function usage() {
-  >&2 echo "Usage: $0 -u <string> -f <path/to/file> -d <path/to/db> [...]"
-  >&2 echo "  -u <string>        Gateway Admin Username"
-  >&2 echo "  -f <path/to/file>  Path to secret file containing password or salted hash"
-  >&2 echo "  -d <path/to/db>    Path to Ignition Configuration DB"
-  >&2 echo "  -s <salt method>   Salt method, either 'timestamp' or 'random' (default)"
+usage() {
+	echo "Usage: $0 -u <string> -f <path/to/file> -d <path/to/db> [-s <salt_method>] [-v]"
+	echo "  -u <string>        Gateway Admin Username"
+	echo "  -f <path/to/file>  Path to secret file containing password or salted hash"
+	echo "  -d <path/to/db>    Path to Ignition Configuration DB"
+	echo "  -s <salt method>   Salt method, either 'timestamp' or 'random' (default)"
+	echo "  -v                 Enable verbose mode"
+	echo "  -h                 Display this help message"
 }
 
 # Argument Processing
 while getopts ":hvu:f:d:s:" opt; do
-  case "$opt" in
-  v)
-    verbose=1
-    ;;
-  u)
-    GATEWAY_ADMIN_USERNAME="${OPTARG}"
-    ;;
-  f)
-    SECRET_LOCATION="${OPTARG}"
-    ;;
-  d)
-    DB_LOCATION="${OPTARG}"
-    DB_FILE=$(basename "${DB_LOCATION}")
-    ;;
-  s)
-    # Compute AUTH_SALT based on timestamp or random
-    case "${OPTARG}" in
-      timestamp)
-        AUTH_SALT=$(date +%s | sha256sum | head -c 8)
-        ;;
-      random)
-        # no-op, default will be set below
-        ;;
-      *)
-        usage
-        echo "Invalid salt method: ${OPTARG}" >&2
-        exit 1
-        ;;
-    esac
-    ;;
-  h)
-    usage
-    exit 0
-    ;;
-  \?)
-    usage
-    echo "Invalid option: -${OPTARG}" >&2
-    exit 1
-    ;;
-  :)
-    usage
-    echo "Invalid option: -${OPTARG} requires an argument" >&2
-    exit 1
-    ;;
-  esac
+	case "$opt" in
+	v) verbose=1 ;;
+	u) GATEWAY_ADMIN_USERNAME="${OPTARG}" ;;
+	f) SECRET_LOCATION="${OPTARG}" ;;
+	d)
+		DB_LOCATION="${OPTARG}"
+		DB_FILE=$(basename "${DB_LOCATION}")
+		;;
+	s) case "${OPTARG}" in
+		timestamp) AUTH_SALT=$(date +%s | sha256sum | head -c 8) ;;
+		random) ;; # no-op, default will be set below
+		*)
+			log_error "Invalid salt method: ${OPTARG}"
+			usage
+			exit 1
+			;;
+		esac ;;
+	h)
+		usage
+		exit 0
+		;;
+	\?)
+		log_error "Invalid option: -${OPTARG}"
+		usage
+		exit 1
+		;;
+	:)
+		log_error "Option -${OPTARG} requires an argument"
+		usage
+		exit 1
+		;;
+	esac
 done
 
-# shift positional args based on number consumed by getopts
-shift $((OPTIND-1))
+shift $((OPTIND - 1))
 
-# Check for required defaults
+# Check for required arguments
 if [ -z "${GATEWAY_ADMIN_USERNAME:-}" ] || [ -z "${SECRET_LOCATION:-}" ] || [ -z "${DB_LOCATION:-}" ]; then
-  usage
-  exit 1
+	log_error "Missing required arguments"
+	usage
+	exit 1
 fi
 
-# set defaults for unset optional args
+# Set default for AUTH_SALT if not already set
 if [[ -z ${AUTH_SALT+x} ]]; then
-  AUTH_SALT=$(od -An -v -t x1 -N 4 /dev/random | tr -d ' ')
+	AUTH_SALT=$(od -An -v -t x1 -N 4 /dev/random | tr -d ' ')
 fi
 
+# Run the main function
 main
