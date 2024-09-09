@@ -115,9 +115,6 @@ EOF
 ###############################################################################
 # Update or add a historical tag provider
 ###############################################################################
-###############################################################################
-# Update or add a historical tag provider
-###############################################################################
 update_or_add_historical_provider() {
 	local json_content="$1"
 	local provider_id="$2"
@@ -178,6 +175,16 @@ EOF
 		"widedb")
 			local datasource_id
 			datasource_id=$(echo "$json_content" | jq -r '.datasource_id')
+
+			# Check if datasource exists
+			local datasource_exists
+			datasource_exists=$(sqlite3 "$DB_LOCATION" "SELECT COUNT(*) FROM DATASOURCES WHERE DATASOURCES_ID=$datasource_id;")
+
+			if [ "$datasource_exists" -eq 0 ]; then
+				log_error "Datasource with ID $datasource_id does not exist. Cannot create widedb provider."
+				return 1
+			fi
+
 			sqlite3 "$DB_LOCATION" <<EOF
 INSERT INTO WIDEDBHISTORIANPROVIDERSETTINGS (PROFILEID, DATASOURCEID)
 VALUES ($new_history_id, $datasource_id);

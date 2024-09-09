@@ -42,28 +42,25 @@ main() {
 	# If developer mode is enabled, add the developer mode wrapper arguments
 	[ "$DEVELOPER_MODE" = "Y" ] && add_developer_mode_args
 
+	create_dedicated_user
+
 	# Handle gateway backup
 	handle_gateway_backup
 
 	# Copy any modules from the /modules directory into the user lib
 	copy_modules_to_user_lib
 
-	# Create the dedicated user
-	create_dedicated_user
-
 	# Register admin password
 	register_admin_password
 
-	if version_gte "$IGNITION_VERSION" "8.1.38"; then
-		# Generate or use provided encoding key
-		setup_encoding_key
+	# Generate or use provided encoding key
+	setup_encoding_key
 
-		# Set opcua password
-		opc_ua_password_sync
+	# Set opcua password
+	opc_ua_password_sync
 
-		# Add database connections
-    	add_database_connections
-	fi
+	# Add database connections
+	add_database_connections
 
 	# Add IDP adapters
     add_idp_adapters
@@ -74,8 +71,10 @@ main() {
 	# Add images to the database
     add_images_to_idb
 
-	# Set co-branding configuration
-	set_cobranding_properties
+	if version_gte "$IGNITION_VERSION" "8.1.20"; then
+		# Set co-branding configuration
+		set_cobranding_properties
+	fi
 
 	# Set system properties
 	set_system_properties
@@ -167,15 +166,26 @@ add_developer_mode_args() {
 # Creates a random encoding key if one is not provided
 ################################################################################
 setup_encoding_key() {
-	# Check if the file is empty or doesnt exist 
-    if [ ! -s "$GATEWAY_ENCODING_KEY_FILE" ]; then
-        # Generate a 24-byte (48 hex characters) random key
-        openssl rand -hex 24 > "$GATEWAY_ENCODING_KEY_FILE"
+	# Check if the file is empty or doesn't exist
+	if [ ! -s "$GATEWAY_ENCODING_KEY_FILE" ] && [ -z "$GATEWAY_ENCODING_KEY" ]; then
+		# Generate a 24-byte (48 hex characters) random key
+		openssl rand -hex 24 > "$GATEWAY_ENCODING_KEY_FILE"
 		log_warning "No encoded key was provided, the following was generated: $(cat "$GATEWAY_ENCODING_KEY_FILE")"
-    fi
-    GATEWAY_ENCODING_KEY=$(cat "$GATEWAY_ENCODING_KEY_FILE")
+	fi
+
+	# If the GATEWAY_ENCODING_KEY is not empty, use it
+	if [ -n "$GATEWAY_ENCODING_KEY" ]; then
+		echo "$GATEWAY_ENCODING_KEY" > "$GATEWAY_ENCODING_KEY_FILE"
+	fi
+
+	GATEWAY_ENCODING_KEY=$(cat "$GATEWAY_ENCODING_KEY_FILE")
 	export GATEWAY_ENCODING_KEY
-    export GATEWAY_ENCODING_KEY_ISHEX=true
+	export GATEWAY_ENCODING_KEY_ISHEX=true
+
+	# If we are prior to the `GATEWAY_ENCODING_KEY` being created, we need to add a jvm arg
+	if ! version_gte "$IGNITION_VERSION" "8.1.38"; then
+		wrapper_args_map+=(["-DencodingKey"]="$GATEWAY_ENCODING_KEY")
+	fi
 }
 
 ################################################################################

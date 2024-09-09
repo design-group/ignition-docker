@@ -40,8 +40,4 @@ RUN touch /gateway-encoding-key && chown ignition:ignition /gateway-encoding-key
 COPY --chmod=0755 ./scripts/*.sh /usr/local/bin/
 COPY --chmod=0755 ./entrypoint-shim.sh /usr/local/bin/
 
-# Create an init-sql directory for the user to mount in their own sql scripts
-RUN mkdir -p /init-sql /init-db-connections /init-idp-adapters /tag-providers && \
-    chown -R ignition:ignition /init-sql /init-db-connections /init-idp-adapters /tag-providers
-
 ENTRYPOINT [ "entrypoint-shim.sh" ]

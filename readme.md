@@ -168,6 +168,8 @@ This will either insert or update existing tag providers based off the name of t
 
 ### Co-Branding
 
+Requires version 8.1.20 or later.
+
 Co-Branding properties can be set by mapping in the Co-Branding files to the `/co-branding` folder in the container. 
 
 The following syntax is expected in `.json` files to set a co-branding property:
