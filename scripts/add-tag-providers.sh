@@ -113,6 +113,23 @@ EOF
 }
 
 ###############################################################################
+# Get datasource ID from name
+###############################################################################
+get_datasource_id() {
+	local datasource_name="$1"
+	local datasource_id
+
+	datasource_id=$(sqlite3 "$DB_LOCATION" "SELECT DATASOURCES_ID FROM DATASOURCES WHERE NAME='$datasource_name';")
+
+	if [ -z "$datasource_id" ]; then
+		log_error "Datasource with name '$datasource_name' not found"
+		return 1
+	fi
+
+	echo "$datasource_id"
+}
+
+###############################################################################
 # Update or add a historical tag provider
 ###############################################################################
 update_or_add_historical_provider() {
@@ -173,8 +190,17 @@ EOF
 		# Insert into specific tables based on provider type
 		case "$type_id" in
 		"widedb")
-			local datasource_id
-			datasource_id=$(echo "$json_content" | jq -r '.datasource_id')
+			local datasource_name datasource_id
+			datasource_name=$(echo "$json_content" | jq -r '.datasource_name')
+
+			if [ -n "$datasource_name" ]; then
+				datasource_id=$(get_datasource_id "$datasource_name")
+				if ! get_datasource_id "$datasource_name" ; then
+					return 1
+				fi
+			else
+				datasource_id=$(echo "$json_content" | jq -r '.datasource_id')
+			fi
 
 			# Check if datasource exists
 			local datasource_exists
@@ -235,6 +261,28 @@ EOF
 }
 
 ###############################################################################
+# Set default values for tag provider settings
+###############################################################################
+set_default_values() {
+	local json_content="$1"
+
+	# Set default values
+	local defaults='{
+        "enabled": true,
+        "allow_backfill": true,
+        "enable_tag_reference_store": true,
+        "read_permissions": "AllOf",
+        "write_permissions": "AllOf",
+        "edit_permissions": "AllOf",
+        "allow_storage": true,
+        "max_grouping": 0
+    }'
+
+	# Merge defaults with existing content, giving priority to existing values
+	echo "$json_content" | jq --argjson defaults "$defaults" '. * $defaults'
+}
+
+###############################################################################
 # Update or add a tag provider from a JSON file
 ###############################################################################
 update_or_add_tag_provider() {
@@ -242,8 +290,26 @@ update_or_add_tag_provider() {
 	local json_content
 	json_content=$(cat "$json_file")
 
+	local type_id
+	type_id=$(echo "$json_content" | jq -r '.type_id')
+
+	# Hardcoded map of tag provider types
 	local provider_type
-	provider_type=$(echo "$json_content" | jq -r '.provider_type')
+	case "$type_id" in
+	"STANDARD" | "gantagprovider")
+		provider_type="realtime"
+		;;
+	"widedb" | "EdgeHistorian" | "RemoteHistorian" | "SplittingProvider")
+		provider_type="historical"
+		;;
+	*)
+		log_error "Unknown provider type: $type_id"
+		return 1
+		;;
+	esac
+
+	# Set default values
+	json_content=$(set_default_values "$json_content")
 
 	local provider_id
 	provider_id=$(generate_uuid)

@@ -136,35 +136,104 @@ The feature will search through any `.png`, `.jpg`, or `.jpeg` files in the dire
 
 Tag Providers can be added by mapping in the Tag Provider files to the `/tag-providers` folder in the container. 
 
-The following syntax is expected in `.json` files to add a tag provider:
+The following syntax is expected in `.json` files to add a tag provider. The required fields vary based on the `type_id`:
+
+1. Standard Tag Provider (Realtime):
 
 	```json
-		{
-			"name": "ExampleLocalRealtimeProvider",
-			"description": "Default tag provider",
-			"enabled": true,
-			"type_id": "STANDARD",
-			"allow_backfill": false,
-			"enable_tag_reference_store": true,
-			"provider_type": "realtime", // or "historical"
-			"read_permissions": "AllOf",  // See (Permission Syntax)[#permission-syntax] for more information
-			"write_permissions": "AllOf", // See (Permission Syntax)[#permission-syntax] for more information
-			"edit_permissions": "AllOf" // See (Permission Syntax)[#permission-syntax] for more information
-		}
+	{
+		"name": "ExampleLocalRealtimeProvider",
+		"description": "Default tag provider",
+		"type_id": "STANDARD"
+	}
 	```
 
-For the `type_id` field, the following options are available: 
+1. Remote Tag Provider (GAN) (Realtime):
 
-| Type ID            | Type of Provider           | Strategy 		   |
-| ------------------ | -------------------------- | ------------------ |
-| `STANDARD` 		 | `Standard Tag Provider`    | Realtime 		   |
-| `gantagprovider`   | `Remote Tag Provider (GAN)`| Realtime 		   |
-| `widedb` 		 	 | `DB Table Historian`       | Historical 	       |	
-| `EdgeHistorian` 	 | `Internal Historian`       | Historical 	       |
-| `RemoteHistorian`  | `Remote History Provider ` | Historical         |
-| `SplittingProvider`| `Tag History Splitter`     | Historical         |
+	```json
+	{
+		"name": "ExampleRemoteRealtimeProvider",
+		"description": "An Example Remote Realtime Provider",
+		"type_id": "gantagprovider",
+		"server_name": "RemoteGatewaysNameHere",
+		"provider_name": "TheProvider"
+	}
+	```
 
-This will either insert or update existing tag providers based off the name of the provider.
+1. DB Table Historian (Historical):
+
+	```json
+	{
+		"name": "ExampleDBTable",
+		"description": "DB Table Historian example",
+		"type_id": "widedb",
+		"datasource_name": "ExampleMSSQL"
+	}
+	```
+
+1. Internal Historian (Historical):
+
+	```json
+	{
+		"name": "ExampleInternal",
+		"description": "Internal Historian example",
+		"type_id": "EdgeHistorian"
+	}
+	```
+
+1. Remote History Provider (Historical):
+
+	```json
+	{
+		"name": "ExampleRemote",
+		"description": "Remote History Provider example",
+		"type_id": "RemoteHistorian",
+		"server_name": "RemoteGatewaysNameHere",
+		"provider_name": "TheProvider"
+	}
+	```
+
+1. Tag History Splitter (Historical):
+
+	```json
+	{
+		"name": "ExampleHistorySplitter",
+		"description": "Tag History Splitter example",
+		"type_id": "SplittingProvider",
+		"connection_a": "exampleremote",
+		"connection_b": "ExampleInternal"
+	}
+	```
+
+For the `type_id` field, the following options are available:
+
+| Type ID            | Type of Provider           | Strategy    | Additional Required Fields |
+| ------------------ | -------------------------- | ----------- | -------------------------- |
+| `STANDARD`         | Standard Tag Provider      | Realtime    | None |
+| `gantagprovider`   | Remote Tag Provider (GAN)  | Realtime    | `server_name`, `provider_name` |
+| `widedb`           | DB Table Historian         | Historical  | `datasource_name` |
+| `EdgeHistorian`    | Internal Historian         | Historical  | None |
+| `RemoteHistorian`  | Remote History Provider    | Historical  | None |
+| `SplittingProvider`| Tag History Splitter       | Historical  | `connection_a`, `connection_b` |
+
+The following fields have default values and are optional for all provider types:
+
+- `enabled`: true
+- `allow_backfill`: true
+- `enable_tag_reference_store`: true
+- `read_permissions`: "AllOf"
+- `write_permissions`: "AllOf"
+- `edit_permissions`: "AllOf"
+
+Additional optional fields for specific provider types:
+
+- For `RemoteHistorian`:
+  - `allow_storage`: true
+  - `max_grouping`: 0
+
+The script will automatically determine if the provider is realtime or historical based on the `type_id`.
+
+This will either insert or update existing tag providers based on the name of the provider.
 
 ### Co-Branding
 
