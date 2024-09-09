@@ -39,11 +39,21 @@ generate_salted_hash() {
     echo "[${auth_salt}]${auth_pwsalthash}"
 }
 
-# Common DB operations
+###############################################################################
+# Get the next available ID for a table
+###############################################################################
 get_next_id() {
     local table_name="$1"
     local id_column="$2"
-    sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX($id_column)+1, 1) FROM $table_name;"
+    local next_id
+    next_id=$(sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX($id_column), 0) + 1 FROM $table_name;")
+    
+    # Ensure the ID is unique
+    while [[ $(sqlite3 "$DB_LOCATION" "SELECT COUNT(*) FROM $table_name WHERE $id_column = $next_id;") -ne 0 ]]; do
+        next_id=$((next_id + 1))
+    done
+    
+    echo "$next_id"
 }
 
 # Argument parsing

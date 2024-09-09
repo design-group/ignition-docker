@@ -18,7 +18,6 @@ main() {
 		log_error "GATEWAY_ENCODING_KEY is not set"
 		exit 1
 	fi
-
 	process_connection_files
 }
 
@@ -29,10 +28,10 @@ process_connection_files() {
 	local json_file
 	for json_file in /init-db-connections/*.json; do
 		if [ -f "$json_file" ]; then
-			if add_database_connection "$json_file"; then
-				log_info "Successfully added database connection from $json_file"
+			if update_or_add_database_connection "$json_file"; then
+				log_info "Successfully processed database connection from $json_file"
 			else
-				log_error "Failed to add database connection from $json_file"
+				log_error "Failed to process database connection from $json_file"
 			fi
 		fi
 	done
@@ -59,9 +58,9 @@ get_translator_id() {
 }
 
 ###############################################################################
-# Add a database connection from a JSON file
+# Update or add a database connection from a JSON file
 ###############################################################################
-add_database_connection() {
+update_or_add_database_connection() {
 	local json_file="$1"
 	local json_content
 	json_content=$(cat "$json_file")
@@ -87,10 +86,30 @@ add_database_connection() {
 	local encoded_password
 	encoded_password=$(encode_password "$password")
 
-	local next_datasource_id
-	next_datasource_id=$(sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX(DATASOURCES_ID)+1, 1) FROM DATASOURCES")
+	# Check if datasource with the same name exists
+	local existing_id
+	existing_id=$(sqlite3 "$DB_LOCATION" "SELECT DATASOURCES_ID FROM DATASOURCES WHERE NAME='$name'")
 
-	sqlite3 "$DB_LOCATION" <<EOF
+	if [ -n "$existing_id" ]; then
+		# Update existing datasource
+		sqlite3 "$DB_LOCATION" <<EOF
+UPDATE DATASOURCES SET
+    DESCRIPTION='$description',
+    DRIVERID=$translator_id,
+    TRANSLATORID=$translator_id,
+    CONNECTURL='$connect_url',
+    USERNAME='$username',
+    PASSWORDE='$encoded_password',
+    CONNECTIONPROPS='$connection_props'
+WHERE DATASOURCES_ID=$existing_id;
+EOF
+		log_info "Updated existing datasource: $name"
+	else
+		# Insert new datasource
+		local next_datasource_id
+		next_datasource_id=$(sqlite3 "$DB_LOCATION" "SELECT COALESCE(MAX(DATASOURCES_ID)+1, 1) FROM DATASOURCES")
+
+		sqlite3 "$DB_LOCATION" <<EOF
 INSERT INTO DATASOURCES (
     DATASOURCES_ID, NAME, DESCRIPTION, DRIVERID, TRANSLATORID, INCLUDESCHEMAINTABLENAME,
     CONNECTURL, USERNAME, PASSWORD, PASSWORDE, ENABLED, CONNECTIONPROPS,
@@ -106,6 +125,7 @@ INSERT INTO DATASOURCES (
 );
 UPDATE SEQUENCES SET val=$next_datasource_id WHERE name='DATASOURCES_SEQ';
 EOF
+	fi
 }
 
 # Run the main function

@@ -12,11 +12,11 @@ DB_LOCATION=${DB_LOCATION:-"${IGNITION_INSTALL_LOCATION}/data/db/config.idb"}
 IMAGE_DIR="/idb-images"
 
 ###############################################################################
-# Main function to process and add images to IDB
+# Main function to process and add/update images in IDB
 ###############################################################################
 main() {
 	if [ ! -d "$IMAGE_DIR" ]; then
-		log_warning "Image directory $IMAGE_DIR not found. Skipping image insertion."
+		log_warning "Image directory $IMAGE_DIR not found. Skipping image processing."
 		return 0
 	fi
 
@@ -48,9 +48,9 @@ ensure_trailing_slash() {
 }
 
 ###############################################################################
-# Add an item (file or directory) to the database
+# Add or update an item (file or directory) in the database
 ###############################################################################
-add_item_to_db() {
+update_or_add_item_to_db() {
 	local item_path="$1"
 	local relative_path="${item_path#"${IMAGE_DIR}"/}"
 	local item_name
@@ -91,12 +91,25 @@ add_item_to_db() {
 		data_value="readfile('$item_path')"
 	fi
 
-	local sql_statement="INSERT OR REPLACE INTO IMAGES (PATH, TYPE, DESCRIPTION, PARENT, DATA, WIDTH, HEIGHT, SIZE) VALUES ('$relative_path', $file_type, '', $parent_value, $data_value, $width, $height, $file_size);"
+	# Check if the item already exists in the database
+	local existing_item
+	existing_item=$(sqlite3 "$DB_LOCATION" "SELECT COUNT(*) FROM IMAGES WHERE PATH='$relative_path'")
+
+	local sql_statement
+	if [ "$existing_item" -eq 0 ]; then
+		# Insert new item
+		sql_statement="INSERT INTO IMAGES (PATH, TYPE, DESCRIPTION, PARENT, DATA, WIDTH, HEIGHT, SIZE) VALUES ('$relative_path', $file_type, '', $parent_value, $data_value, $width, $height, $file_size);"
+		log_info "Adding new item: $relative_path"
+	else
+		# Update existing item
+		sql_statement="UPDATE IMAGES SET TYPE=$file_type, PARENT=$parent_value, DATA=$data_value, WIDTH=$width, HEIGHT=$height, SIZE=$file_size WHERE PATH='$relative_path';"
+		log_info "Updating existing item: $relative_path"
+	fi
 
 	if sqlite3 "$DB_LOCATION" "$sql_statement"; then
-		log_info "Added item: $relative_path"
+		log_info "Successfully processed item: $relative_path"
 	else
-		log_error "Failed to add item: $relative_path"
+		log_error "Failed to process item: $relative_path"
 	fi
 }
 
@@ -112,9 +125,9 @@ process_directory() {
 		return
 	fi
 
-	# Add the directory itself to the database, except for the root directory
+	# Add or update the directory itself in the database, except for the root directory
 	if [ "$dir" != "$IMAGE_DIR" ]; then
-		add_item_to_db "$dir"
+		update_or_add_item_to_db "$dir"
 	fi
 
 	# Process all files and subdirectories
@@ -122,7 +135,7 @@ process_directory() {
 		if [ -d "$item" ]; then
 			process_directory "$item"
 		elif [ -f "$item" ]; then
-			add_item_to_db "$item"
+			update_or_add_item_to_db "$item"
 		fi
 	done
 }

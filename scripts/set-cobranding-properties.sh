@@ -33,8 +33,6 @@ get_image_type() {
 	case "${file_extension,,}" in
 	png) echo "image/png" ;;
 	svg) echo "image/svg+xml" ;;
-	jpg | jpeg) echo "image/jpeg" ;;
-	gif) echo "image/gif" ;;
 	*) echo "application/octet-stream" ;; # Default MIME type for unknown files
 	esac
 }

@@ -235,8 +235,8 @@ copy_modules_to_user_lib() {
 # arbitrary build up temp user sources repeatedly
 ################################################################################
 register_admin_password() {
-	echo "$IGNITION_ADMIN_PASSWORD" >/tmp/admin_password
-	/usr/local/bin/register-password.sh -u "$IGNITION_ADMIN_USERNAME" -f /tmp/admin_password -d "$DB_LOCATION"
+	echo "$GATEWAY_ADMIN_PASSWORD" >/tmp/admin_password
+	/usr/local/bin/register-password.sh -u "$GATEWAY_ADMIN_USERNAME" -f /tmp/admin_password -d "$DB_LOCATION"
 	rm /tmp/admin_password
 
 	# Unset the username:password from the environment variable so that the regular entrypoint doesn't catch it

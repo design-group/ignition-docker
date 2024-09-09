@@ -23,10 +23,10 @@ When pulling the docker image, note that using the copy link from the home page 
 ## File Access
 
 This custom build creates a symlink in the `/workdir` directory to a few of the components in Ignition's `data` directory. This allows you to easily access the files on the host system, and simplifies the necessary `.gitignore` for a project. The following items are symlinked by default, and these are the environment variables that enable them:
-| Symlink Path | Environment Variable |
-| --- | --- |
-| `/usr/local/bin/ignition/data/projects` | `SYMLINK_PROJECTS` |
-| `/usr/local/bin/ignition/data/modules` | `SYMLINK_THEMES` |
+| Symlink Path                            | Environment Variable |
+| --------------------------------------- | -------------------- |
+| `/usr/local/bin/ignition/data/projects` | `SYMLINK_PROJECTS`   |
+| `/usr/local/bin/ignition/data/modules`  | `SYMLINK_THEMES`     |
 
 To disable one of the symlinks, set the environment variable to `false`. For example, to disable the symlink to the `projects` directory, set `SYMLINK_PROJECTS=false`
 
@@ -43,21 +43,37 @@ This is a derived image of the `inductiveautomation/ignition` image. Please see 
 ### Environment Variables
 
 This image also preloads the following environment variables by default:
-| Environment Variable | Min-Version | Value |
-| --- | --- | --- |
-| `ACCEPT_IGNITION_EULA` | 8.1.13 | `Y` |
-| `GATEWAY_ADMIN_USERNAME` | 8.1.13 | `admin` |
-| `GATEWAY_ADMIN_PASSWORD` | 8.1.13 | `password` |
-| `IGNITION_EDITION` | 8.1.13 | `standard` |
-| `GATEWAY_MODULES_ENABLED` | 8.1.17 | `alarm-notification,allen-bradley-drivers,bacnet-driver,opc-ua,perspective,reporting,tag-historian,web-developer` |
-| `IGNITION_UID` | 8.1.13 | `1000` |
-| `IGNITION_GID` | 8.1.13 | `1000` |
-| `PROJECT_SCAN_FREQUENCY` | 8.1.13 | `10` |
-| `SYMLINK_PROJECTS` | 8.1.13 | `true` |
-| `SYMLINK_THEMES` | 8.1.13 | `true` |
-| `ADDITIONAL_DATA_FOLDERS` | 8.1.13 | `""` |
-| `DEVELOPER_MODE` | 8.1.13 | `N` |
-| `DISABLE_QUICKSTART` | 8.1.23 | `true` |
+| Environment Variable           | Min-Version | Value                                                                                                             |
+| ------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ACCEPT_IGNITION_EULA`         | 8.1.13      | `Y`                                                                                                               |
+| `GATEWAY_ADMIN_USERNAME`       | 8.1.13      | `admin`                                                                                                           |
+| `GATEWAY_ADMIN_PASSWORD`       | 8.1.13      | `password`                                                                                                        |
+| `IGNITION_EDITION`             | 8.1.13      | `standard`                                                                                                        |
+| `GATEWAY_MODULES_ENABLED`      | 8.1.17      | `alarm-notification,allen-bradley-drivers,bacnet-driver,opc-ua,perspective,reporting,tag-historian,web-developer` |
+| `IGNITION_UID`                 | 8.1.13      | `1000`                                                                                                            |
+| `IGNITION_GID`                 | 8.1.13      | `1000`                                                                                                            |
+| `PROJECT_SCAN_FREQUENCY`       | 8.1.13      | `10`                                                                                                              |
+| `SYMLINK_PROJECTS`             | 8.1.13      | `true`                                                                                                            |
+| `SYMLINK_THEMES`               | 8.1.13      | `true`                                                                                                            |
+| `ADDITIONAL_DATA_FOLDERS`      | 8.1.13      | `""`                                                                                                              |
+| `DEVELOPER_MODE`               | 8.1.13      | `N`                                                                                                               |
+| `DISABLE_QUICKSTART`           | 8.1.23      | `true`                                                                                                            |
+| `GATEWAY_ENCODING_KEY`         | 8.1.38      | If not set, will be generated for password injection to the db.                                                   |
+| `GATEWAY_ENCODING_KEY_FILE`    | 8.1.38      | If not set, will be generated for password injection to the db.                                                   |
+| `SYSTEM_USER_SOURCE`           | 8.1.13      | `""`                                                                                                              |
+| `SYSTEM_IDENTITY_PROVIDER`     | 8.1.13      | `""`                                                                                                              |
+| `HOMEPAGE_URL`                 | 8.1.13      | `""`                                                                                                              |
+| `DESIGNER_AUTH_STRATEGY`       | 8.1.13      | `""`                                                                                                              |
+| `CONFIG_PERMISSIONS`           | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `STATUS_PAGE_PERMISSIONS`      | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `HOME_PAGE_PERMISSIONS`        | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `DESIGNER_PERMISSIONS`         | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `PROJECT_CREATION_PERMISSIONS` | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `OPC_SERVER_PASSWORD`          | 8.1.38      | `""`, if the password cannot be decoded with the `GATEWAY_ENCODING_KEY`, then it will default to `password`       |
+
+### Permission Syntax
+
+The permissions are a comma separated list of permissions that can be set for the corresponding property. The permission start with the permission type, followed by a comma, and then the permission values in a comma seperated list. For example, to set the `CONFIG_PERMISSIONS` value to `Authenticated/Role/Administrator` AND also `Authenticated/Role/Developer`, you would set the `CONFIG_PERMISSIONS` environment variable to `AllOf,Authenticated/Role/Administrator,Authenticated/Role/Developer`.
 
 ### Additional Config Folders
 
@@ -65,7 +81,7 @@ Added an environment variable that allows the user to map application config fil
 
 ### Secondary Images
 
-The [previous version of this repository](https://github.com/bwdesigngroup/ignition-docker-archive) used to include versions for `-iiot` and `-mes`. This essentially just mapped in the corresponding modules, however it was finicky, and didnt always work as expected because module versions for Sepasoft arent identical to Ignition versions. 
+The [previous version of this repository](https://github.com/bwdesigngroup/ignition-docker-legacy) used to include versions for `-iiot` and `-mes`. This essentially just mapped in the corresponding modules, however it was finicky, and didnt always work as expected because module versions for Sepasoft aren't identical to Ignition versions. 
 
 Because of this, the decision was made to remove these images, and instead the best practice is to use the [Third Party Modules](#third-party-modules) section to map in the modules you need. This allows for more flexibility and control over the modules that are being used and their versions.
 
@@ -78,7 +94,96 @@ Any additional modules outside of the native ignition ones that want to be added
 		- ./my-local-modules:/modules
 	```
 
-Due to the way module onboarding works, in order for it to take effect, you must restart the container after its initial creation. This can be done by running `docker-compose restart` from the directory containing the `docker-compose.yml` file.
+### Database Connections
+
+Database connections can be added by mapping in the SQL files to the `/init-db-connections` folder in the container. 
+
+The following syntax is expected in `.json` files to add a database connection:
+
+	```json
+		{
+			"name": "ExampleMSSQL",
+			"type": "MSSQL",
+			"description": "Example Microsoft SQL Server Connection",
+			"connect_url": "jdbc:sqlserver://myServer:1433\\MSSQLSERVER",
+			"username": "TheUsername",
+			"password": "ThePassword",
+			"connection_props": "databaseName=exampledb"
+		}
+	```
+
+	Appropriate `type`'s are: `MSSQL`, `POSTGRES`, `SQLITE`, `MYSQL`, `ORACLE`, `MARIADB` 
+
+	This functionality will either insert or update existing database connections based off the name of the connection.
+
+### IDP Adapters
+
+IDP Adapters can be added by mapping in the IDP Adapter files to the `/init-idp-adapters` folder in the container. 
+
+The feature expects the syntax in a `.json` file exported by the native Ignition IDP Adapter export feature. To get an export, go to the IDP Configuration page and select `More > Export` on the pre-configured provider.
+
+This will either insert or update existing IDP Adapters based off the name of the adapter.
+
+### Adding Images to the IDB
+
+Images can be added to the IDB by mapping in the image files to the `/idb-images` folder in the container. 
+
+The feature will search through any `.png`, `.jpg`, or `.jpeg` files in the directory and add them to the IDB. The name of the image will be the name of the file, and the path will be the path of the file from within the `/idb-images` directory. This will either insert or update existing images based off the name of the image.
+
+### Tag Providers
+
+Tag Providers can be added by mapping in the Tag Provider files to the `/tag-providers` folder in the container. 
+
+The following syntax is expected in `.json` files to add a tag provider:
+
+	```json
+		{
+			"name": "ExampleLocalRealtimeProvider",
+			"description": "Default tag provider",
+			"enabled": true,
+			"type_id": "STANDARD",
+			"allow_backfill": false,
+			"enable_tag_reference_store": true,
+			"provider_type": "realtime", // or "historical"
+			"read_permissions": "AllOf",  // See (Permission Syntax)[#permission-syntax] for more information
+			"write_permissions": "AllOf", // See (Permission Syntax)[#permission-syntax] for more information
+			"edit_permissions": "AllOf" // See (Permission Syntax)[#permission-syntax] for more information
+		}
+	```
+
+For the `type_id` field, the following options are available: 
+
+| Type ID            | Type of Provider           | Strategy 		   |
+| ------------------ | -------------------------- | ------------------ |
+| `STANDARD` 		 | `Standard Tag Provider`    | Realtime 		   |
+| `gantagprovider`   | `Remote Tag Provider (GAN)`| Realtime 		   |
+| `widedb` 		 	 | `DB Table Historian`       | Historical 	       |	
+| `EdgeHistorian` 	 | `Internal Historian`       | Historical 	       |
+| `RemoteHistorian`  | `Remote History Provider ` | Historical         |
+| `SplittingProvider`| `Tag History Splitter`     | Historical         |
+
+This will either insert or update existing tag providers based off the name of the provider.
+
+### Co-Branding
+
+Co-Branding properties can be set by mapping in the Co-Branding files to the `/co-branding` folder in the container. 
+
+The following syntax is expected in `.json` files to set a co-branding property:
+
+	```json
+		{
+			"enabled": true,
+			"backgroundColor": "#FFBF00",
+			"textColor": "#000000",
+			"buttonColor": "#FFBF00",
+			"buttonTextColor": "#000000",
+			"logoPath": "/co-branding/icon160.png",
+			"faviconPath": "/co-branding/icon180.png",
+			"appIconPath": "/co-branding/icon180.png"
+		}
+	```
+
+The images need to be either `.png`, or `.svg` files. The paths are relative to the `/co-branding` directory. This will either insert or update existing co-branding properties.
 
 ___
 
@@ -91,6 +196,14 @@ ___
 		  # # In order to use this volume, you must first create the directory `data-folder` next to the docker-compose.yml file
 		  # volumes:
 		  #   - ./data-folder:/workdir
+		  #   - ./init-sql:/init-sql
+		  #   - ./modules:/modules
+		  #   - ./secrets/gateway-encoding-key:/gateway-encoding-key
+		  #   - ./init-db-connections:/init-db-connections
+		  #   - ./init-idp-adapters:/init-idp-adapters
+		  #   - ./tag-providers:/tag-providers
+		  #   - ./idb-images:/idb-images
+		  #   - ./co-branding:/co-branding
 		  # environment:
 		  #   - ADDITIONAL_DATA_FOLDERS=one-folder,other-folder
 	```
@@ -130,4 +243,4 @@ If you have any requests for additional features, please feel free to [open an i
 
 ### Shoutout
 
-A big shoutout to [Inductive Automation](https://inductiveautomation.com/) for providing the base image and Ignition software, and [Kevin Collins](https://github.com/thirdgen88) for the original inspiration and support for this image.
+A big shoutout to [Inductive Automation](https://inductiveautomation.com/) for providing the base image and Ignition software, and [Kevin Collins](https://github.com/thirdgen88) for the original inspiration and support for this image, as well as inspiration for the `register-password.sh` and `register-module.sh` scripts!
