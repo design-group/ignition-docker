@@ -79,6 +79,9 @@ main() {
 	# Set system properties
 	set_system_properties
 
+	# Add localization
+	add_localization
+
 	# Restore the final gateway backup
 	restore_gateway_backup
 
@@ -318,6 +321,14 @@ set_system_properties() {
 	# Set system properties
 	/usr/local/bin/set-system-properties.sh
 }
+
+###############################################################################
+# Add localization
+###############################################################################
+add_localization() {
+    /usr/local/bin/add-localization.sh
+}
+
 
 ################################################################################
 # Restore the final gateway backup

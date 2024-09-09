@@ -89,10 +89,10 @@ Because of this, the decision was made to remove these images, and instead the b
 
 Any additional modules outside of the native ignition ones that want to be added can be mapped into the `/modules` folder in the container. This is done by adding the following to the `volumes` section of the `docker-compose.yml` file:
 
-	```yaml
-		volumes:
-		- ./my-local-modules:/modules
-	```
+```yaml
+volumes:
+  - ./my-local-modules:/modules
+```
 
 ### Database Connections
 
@@ -102,21 +102,21 @@ Database connections can be added by mapping in the SQL files to the `/init-db-c
 
 The following syntax is expected in `.json` files to add a database connection:
 
-	```json
-		{
-			"name": "ExampleMSSQL",
-			"type": "MSSQL",
-			"description": "Example Microsoft SQL Server Connection",
-			"connect_url": "jdbc:sqlserver://myServer:1433\\MSSQLSERVER",
-			"username": "TheUsername",
-			"password": "ThePassword",
-			"connection_props": "databaseName=exampledb"
-		}
-	```
+```json
+{
+	"name": "ExampleMSSQL",
+	"type": "MSSQL",
+	"description": "Example Microsoft SQL Server Connection",
+	"connect_url": "jdbc:sqlserver://myServer:1433\\MSSQLSERVER",
+	"username": "TheUsername",
+	"password": "ThePassword",
+	"connection_props": "databaseName=exampledb"
+}
+```
 
-	Appropriate `type`'s are: `MSSQL`, `POSTGRES`, `SQLITE`, `MYSQL`, `ORACLE`, `MARIADB` 
+Appropriate `type`'s are: `MSSQL`, `POSTGRES`, `SQLITE`, `MYSQL`, `ORACLE`, `MARIADB` 
 
-	This functionality will either insert or update existing database connections based off the name of the connection.
+This functionality will either insert or update existing database connections based off the name of the connection.
 
 ### IDP Adapters
 
@@ -140,70 +140,70 @@ The following syntax is expected in `.json` files to add a tag provider. The req
 
 1. Standard Tag Provider (Realtime):
 
-	```json
-	{
-		"name": "ExampleLocalRealtimeProvider",
-		"description": "Default tag provider",
-		"type_id": "STANDARD"
-	}
-	```
+```json
+{
+	"name": "ExampleLocalRealtimeProvider",
+	"description": "Default tag provider",
+	"type_id": "STANDARD"
+}
+```
 
 1. Remote Tag Provider (GAN) (Realtime):
 
-	```json
-	{
-		"name": "ExampleRemoteRealtimeProvider",
-		"description": "An Example Remote Realtime Provider",
-		"type_id": "gantagprovider",
-		"server_name": "RemoteGatewaysNameHere",
-		"provider_name": "TheProvider"
-	}
-	```
+```json
+{
+	"name": "ExampleRemoteRealtimeProvider",
+	"description": "An Example Remote Realtime Provider",
+	"type_id": "gantagprovider",
+	"server_name": "RemoteGatewaysNameHere",
+	"provider_name": "TheProvider"
+}
+```
 
 1. DB Table Historian (Historical):
 
-	```json
-	{
-		"name": "ExampleDBTable",
-		"description": "DB Table Historian example",
-		"type_id": "widedb",
-		"datasource_name": "ExampleMSSQL"
-	}
-	```
+```json
+{
+	"name": "ExampleDBTable",
+	"description": "DB Table Historian example",
+	"type_id": "widedb",
+	"datasource_name": "ExampleMSSQL"
+}
+```
 
 1. Internal Historian (Historical):
 
-	```json
-	{
-		"name": "ExampleInternal",
-		"description": "Internal Historian example",
-		"type_id": "EdgeHistorian"
-	}
-	```
+```json
+{
+	"name": "ExampleInternal",
+	"description": "Internal Historian example",
+	"type_id": "EdgeHistorian"
+}
+```
 
 1. Remote History Provider (Historical):
 
-	```json
-	{
-		"name": "ExampleRemote",
-		"description": "Remote History Provider example",
-		"type_id": "RemoteHistorian",
-		"server_name": "RemoteGatewaysNameHere",
-		"provider_name": "TheProvider"
-	}
-	```
+```json
+{
+	"name": "ExampleRemote",
+	"description": "Remote History Provider example",
+	"type_id": "RemoteHistorian",
+	"server_name": "RemoteGatewaysNameHere",
+	"provider_name": "TheProvider"
+}
+```
 
 1. Tag History Splitter (Historical):
 
-	```json
-	{
-		"name": "ExampleHistorySplitter",
-		"description": "Tag History Splitter example",
-		"type_id": "SplittingProvider",
-		"connection_a": "exampleremote",
-		"connection_b": "ExampleInternal"
-	}
-	```
+```json
+{
+	"name": "ExampleHistorySplitter",
+	"description": "Tag History Splitter example",
+	"type_id": "SplittingProvider",
+	"connection_a": "exampleremote",
+	"connection_b": "ExampleInternal"
+}
+```
 
 For the `type_id` field, the following options are available:
 
@@ -243,43 +243,109 @@ Co-Branding properties can be set by mapping in the Co-Branding files to the `/c
 
 The following syntax is expected in `.json` files to set a co-branding property:
 
-	```json
-		{
-			"enabled": true,
-			"backgroundColor": "#FFBF00",
-			"textColor": "#000000",
-			"buttonColor": "#FFBF00",
-			"buttonTextColor": "#000000",
-			"logoPath": "/co-branding/icon160.png",
-			"faviconPath": "/co-branding/icon180.png",
-			"appIconPath": "/co-branding/icon180.png"
-		}
-	```
+```json
+{
+	"enabled": true,
+	"backgroundColor": "#FFBF00",
+	"textColor": "#000000",
+	"buttonColor": "#FFBF00",
+	"buttonTextColor": "#000000",
+	"logoPath": "/co-branding/icon160.png",
+	"faviconPath": "/co-branding/icon180.png",
+	"appIconPath": "/co-branding/icon180.png"
+}
+```
 
 The images need to be either `.png`, or `.svg` files. The paths are relative to the `/co-branding` directory. This will either insert or update existing co-branding properties.
+
+### Localization
+
+Localization files can be added by mapping in the localization files to the `/localization` folder in the container. The script supports the native `.properties` and `.xml` export file formats for localization.
+
+#### Properties File Format
+
+For `.properties` files, use the following format:
+
+```properties
+#Locale: es
+hello=hola
+car=coche
+```
+
+The first line must specify the locale using `#Locale: <locale_code>`.
+
+#### XML File Format
+
+For `.xml` files, use the following format:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Locale: es</comment>
+<entry key="hello">hola</entry>
+<entry key="car">coche</entry>
+</properties>
+```
+
+The `<comment>` tag must specify the locale using `Locale: <locale_code>`.
+
+#### Localization Settings
+
+You can customize the localization settings by creating a `properties.json` file in the `/localization` folder. The file should have the following structure:
+
+```json
+{
+	"caseInsensitive": false,
+	"ignoreWhitespace": false,
+	"ignorePunctuation": false,
+	"ignoreTags": false
+}
+```
+
+All fields are optional and default to `false` if not specified.
+
+#### Usage
+
+To use the localization feature:
+
+1. Create a folder named `localization` in your project directory.
+2. Add your `.properties` and/or `.xml` localization files to this folder.
+3. Optionally, add a `properties.json` file to customize localization settings.
+4. In your `docker-compose.yml` file, add a volume mapping for the localization folder:
+
+```yaml
+volumes:
+  - ./localization:/localization
+```
+
+The localization files will be processed when the container starts, and the translations will be available in your Ignition projects.
 
 ___
 
 ### Example docker-compose file
 
-	```yaml
-	services:
-	  gateway:
-		  image: bwdesigngroup/ignition-docker:8.1.31
-		  # # In order to use this volume, you must first create the directory `data-folder` next to the docker-compose.yml file
-		  # volumes:
-		  #   - ./data-folder:/workdir
-		  #   - ./init-sql:/init-sql
-		  #   - ./modules:/modules
-		  #   - ./secrets/gateway-encoding-key:/gateway-encoding-key
-		  #   - ./init-db-connections:/init-db-connections
-		  #   - ./init-idp-adapters:/init-idp-adapters
-		  #   - ./tag-providers:/tag-providers
-		  #   - ./idb-images:/idb-images
-		  #   - ./co-branding:/co-branding
-		  # environment:
-		  #   - ADDITIONAL_DATA_FOLDERS=one-folder,other-folder
-	```
+```yaml
+services:
+  gateway:
+	image: bwdesigngroup/ignition-docker:8.1.31
+	# # In order to use this volume, you must first create the directory `data-folder` next to the docker-compose.yml file
+	# volumes:
+	#   - ./data-folder:/workdir
+	#   - ./init-sql:/init-sql
+	#   - ./modules:/modules
+	#   - ./secrets/gateway-encoding-key:/gateway-encoding-key
+	#   - ./init-db-connections:/init-db-connections
+	#   - ./init-idp-adapters:/init-idp-adapters
+	#   - ./tag-providers:/tag-providers
+	#   - ./idb-images:/idb-images
+	#   - ./co-branding:/co-branding
+	#   - ./localization:/localization
+	# environment:
+	#   - ADDITIONAL_DATA_FOLDERS=one-folder,other-folder
+```
+
+Note the addition of the `./localization:/localization` volume mapping for the localization feature.
 
 ___
 
@@ -296,11 +362,13 @@ In order to test your features, you can use the following procedure to build and
 3. Run `docker build --file Dockerfile -t <your-image-name>  . | docker bake -f docker-bake.hcl -`
 4. In a new directory, make a `docker-compose.yml` file using the Example docker-compose file above substituting the value for `image` for `<your-image-name>`. See example below:
 
-		services:
-			gateway:
-				image: <your-image-name>
-				ports:
-					- 80:8088
+	```yaml
+	services:
+		gateway:
+			image: <your-image-name>
+			ports:
+				- 80:8088
+	```
 
 5. Run `docker-compose up -d` in the directory containing your `docker-compose.yml` file.
 
