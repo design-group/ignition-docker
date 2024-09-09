@@ -22,6 +22,17 @@ handle_error() {
     log_error "An error occurred in ${BASH_SOURCE[1]} at line ${BASH_LINENO[0]}. Exit code: $exit_code"
 }
 
+# Version comparison function
+version_gte() {
+    local version=$1
+    local required=$2
+    if [[ "$(printf '%s\n' "$required" "$version" | sort -V | head -n1)" = "$required" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Encoding utilities
 encode_password() {
     local password="$1"
@@ -137,5 +148,5 @@ convert_permissions_to_json() {
 }
 
 # Export functions and variables
-export -f log_info log_warning log_error handle_error encode_password generate_salted_hash get_next_id parse_args usage convert_permissions_to_json
+export -f log_info log_warning log_error handle_error encode_password generate_salted_hash get_next_id parse_args usage convert_permissions_to_json version_gte
 export SCRIPT_DIR

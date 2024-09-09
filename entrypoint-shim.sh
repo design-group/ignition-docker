@@ -42,9 +42,6 @@ main() {
 	# If developer mode is enabled, add the developer mode wrapper arguments
 	[ "$DEVELOPER_MODE" = "Y" ] && add_developer_mode_args
 
-	# Generate or use provided encoding key
-    setup_encoding_key
-
 	# Handle gateway backup
 	handle_gateway_backup
 
@@ -57,15 +54,20 @@ main() {
 	# Register admin password
 	register_admin_password
 
-	# Set opcua password
-	opc_ua_password_sync
+	if version_gte "$IGNITION_VERSION" "8.1.38"; then
+		# Generate or use provided encoding key
+		setup_encoding_key
 
-	# Add database connections
-    add_database_connections
+		# Set opcua password
+		opc_ua_password_sync
+
+		# Add database connections
+    	add_database_connections
+	fi
 
 	# Add IDP adapters
     add_idp_adapters
-
+	
 	# Add tag providers
 	add_tag_providers
 

@@ -64,11 +64,11 @@ This image also preloads the following environment variables by default:
 | `SYSTEM_IDENTITY_PROVIDER`     | 8.1.13      | `""`                                                                                                              |
 | `HOMEPAGE_URL`                 | 8.1.13      | `""`                                                                                                              |
 | `DESIGNER_AUTH_STRATEGY`       | 8.1.13      | `""`                                                                                                              |
-| `CONFIG_PERMISSIONS`           | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
-| `STATUS_PAGE_PERMISSIONS`      | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
-| `HOME_PAGE_PERMISSIONS`        | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
-| `DESIGNER_PERMISSIONS`         | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
-| `PROJECT_CREATION_PERMISSIONS` | 8.1.38      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `CONFIG_PERMISSIONS`           | 8.1.13      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `STATUS_PAGE_PERMISSIONS`      | 8.1.13      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `HOME_PAGE_PERMISSIONS`        | 8.1.13      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `DESIGNER_PERMISSIONS`         | 8.1.13      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
+| `PROJECT_CREATION_PERMISSIONS` | 8.1.13      | `""`, See [Permission Syntax](#permission-syntax) for help.                                                       |
 | `OPC_SERVER_PASSWORD`          | 8.1.38      | `""`, if the password cannot be decoded with the `GATEWAY_ENCODING_KEY`, then it will default to `password`       |
 
 ### Permission Syntax
@@ -95,6 +95,8 @@ Any additional modules outside of the native ignition ones that want to be added
 	```
 
 ### Database Connections
+
+Requires version 8.1.38 or later, due to the need for the `GATEWAY_ENCODING_KEY` environment variable.
 
 Database connections can be added by mapping in the SQL files to the `/init-db-connections` folder in the container. 
 
