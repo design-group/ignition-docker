@@ -11,6 +11,8 @@ trap handle_error ERR
 DB_LOCATION=${DB_LOCATION:-"${IGNITION_INSTALL_LOCATION}/data/db/config.idb"}
 LOCALIZATION_DIR="/localization"
 PROPERTIES_JSON="${LOCALIZATION_DIR}/properties.json"
+TEMP_SQL_FILE="/tmp/localization_batch.sql"
+BATCH_SIZE=1100
 
 ###############################################################################
 # Main function to process localization files and update database
@@ -99,6 +101,10 @@ process_properties_file() {
     # Read file content into an array
     mapfile -t lines < "$file"
 
+    # Initialize batch processing
+    echo "BEGIN TRANSACTION;" > "$TEMP_SQL_FILE"
+    local count=0
+
     # Process each line
     for line in "${lines[@]}"; do
         # Ignore comments and empty lines
@@ -111,7 +117,18 @@ process_properties_file() {
         key=${key// /}
         value=${value#"${value%%[![:space:]]*}"}
         insert_or_update_translation "$key" "$value" "$locale"
+
+        ((count++))
+        if [ $count -eq $BATCH_SIZE ]; then
+            execute_batch
+            count=0
+        fi
     done
+
+    # Execute any remaining statements
+    if [ $count -gt 0 ]; then
+        execute_batch
+    fi
 }
 
 ###############################################################################
@@ -129,9 +146,24 @@ process_xml_file() {
 
     log_info "Processing XML file: $file (Locale: $locale)"
 
+    # Initialize batch processing
+    echo "BEGIN TRANSACTION;" > "$TEMP_SQL_FILE"
+    local count=0
+
     sed -n 's/.*<entry key="\([^"]*\)">\(.*\)<\/entry>.*/\1=\2/p' "$file" | while IFS='=' read -r key value; do
         insert_or_update_translation "$key" "$value" "$locale"
+        
+        ((count++))
+        if [ $count -eq $BATCH_SIZE ]; then
+            execute_batch
+            count=0
+        fi
     done
+
+    # Execute any remaining statements
+    if [ $count -gt 0 ]; then
+        execute_batch
+    fi
 }
 
 ###############################################################################
@@ -146,39 +178,30 @@ insert_or_update_translation() {
     key="${key//\'/\'\'}"
     value="${value//\'/\'\'}"
 
-    # Insert or update the key (with NULL locale)
-    local term_id
-    term_id=$(sqlite3 "$DB_LOCATION" "SELECT TERMID FROM TRANSLATIONTERMS WHERE TEXTVALUE='$key' AND LOCALE IS NULL")
-    
-    if [ -z "$term_id" ]; then
-        # Insert new key
-        term_id=$(get_next_id "TRANSLATIONTERMS" "TERMID")
-        local next_id
-        next_id=$(get_next_id "TRANSLATIONTERMS" "TRANSLATIONTERMS_ID")
-        sqlite3 "$DB_LOCATION" <<EOF
-INSERT INTO TRANSLATIONTERMS (TRANSLATIONTERMS_ID, TERMID, TEXTVALUE, LOCALE)
-VALUES ($next_id, $term_id, '$key', NULL);
-UPDATE SEQUENCES SET val=$term_id WHERE name='TRANSLATIONTERMS_SEQ';
-EOF
-    fi
+    # Append SQL statements to the temporary file
+    cat <<EOF >> "$TEMP_SQL_FILE"
+INSERT OR IGNORE INTO TRANSLATIONTERMS (TRANSLATIONTERMS_ID, TERMID, TEXTVALUE, LOCALE)
+SELECT (SELECT COALESCE(MAX(TRANSLATIONTERMS_ID), 0) + 1 FROM TRANSLATIONTERMS),
+       (SELECT COALESCE(MAX(TERMID), 0) + 1 FROM TRANSLATIONTERMS),
+       '$key', NULL
+WHERE NOT EXISTS (SELECT 1 FROM TRANSLATIONTERMS WHERE TEXTVALUE='$key' AND LOCALE IS NULL);
 
-    # Insert or update the translation for the specific locale
-    local translation_id
-    translation_id=$(sqlite3 "$DB_LOCATION" "SELECT TRANSLATIONTERMS_ID FROM TRANSLATIONTERMS WHERE TERMID=$term_id AND LOCALE='$locale'")
+INSERT OR REPLACE INTO TRANSLATIONTERMS (TRANSLATIONTERMS_ID, TERMID, TEXTVALUE, LOCALE)
+SELECT (SELECT COALESCE(MAX(TRANSLATIONTERMS_ID), 0) + 1 FROM TRANSLATIONTERMS),
+       (SELECT TERMID FROM TRANSLATIONTERMS WHERE TEXTVALUE='$key' AND LOCALE IS NULL),
+       '$value', '$locale';
 
-    if [ -z "$translation_id" ]; then
-        # Insert new translation
-        local next_id
-        next_id=$(get_next_id "TRANSLATIONTERMS" "TRANSLATIONTERMS_ID")
-        sqlite3 "$DB_LOCATION" <<EOF
-INSERT INTO TRANSLATIONTERMS (TRANSLATIONTERMS_ID, TERMID, TEXTVALUE, LOCALE)
-VALUES ($next_id, $term_id, '$value', '$locale');
-UPDATE SEQUENCES SET val=$next_id WHERE name='TRANSLATIONTERMS_SEQ';
+UPDATE SEQUENCES SET val = (SELECT MAX(TRANSLATIONTERMS_ID) FROM TRANSLATIONTERMS) WHERE name='TRANSLATIONTERMS_SEQ';
 EOF
-    else
-        # Update existing translation
-        sqlite3 "$DB_LOCATION" "UPDATE TRANSLATIONTERMS SET TEXTVALUE='$value' WHERE TRANSLATIONTERMS_ID=$translation_id"
-    fi
+}
+
+###############################################################################
+# Execute the batch of SQL statements
+###############################################################################
+execute_batch() {
+    echo "COMMIT;" >> "$TEMP_SQL_FILE"
+    sqlite3 "$DB_LOCATION" < "$TEMP_SQL_FILE"
+    echo "BEGIN TRANSACTION;" > "$TEMP_SQL_FILE"
 }
 
 ###############################################################################
