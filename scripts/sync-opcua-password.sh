@@ -49,41 +49,27 @@ generate_salted_hash() {
 # Synchronize the OPC UA server password with the internal user password
 ###############################################################################
 sync_opc_ua_password() {
-	# Retrieve OPC UA connection settings
-	local opc_ua_settings server_settings_id username current_password
-	opc_ua_settings=$(sqlite3 "${DB_LOCATION}" "SELECT SERVERSETTINGSID, USERNAME, PASSWORD FROM OPCUACONNECTIONSETTINGS WHERE ENDPOINTURL='opc.tcp://localhost:62541'")
-	IFS='|' read -r server_settings_id username current_password <<<"$opc_ua_settings"
-
-	if [ -z "$server_settings_id" ]; then
-		log_error "OPC UA connection for opc.tcp://localhost:62541 not found"
-		return 1
+	# Check if the OPCUACONNECTIONSETTINGS table exists
+	if ! sqlite3 "${DB_LOCATION}" "SELECT name FROM sqlite_master WHERE type='table' AND name='OPCUACONNECTIONSETTINGS';" | grep -q OPCUACONNECTIONSETTINGS; then
+		log_warning "OPCUACONNECTIONSETTINGS table does not exist. Skipping OPC UA password sync."
+		return
 	fi
 
-	# Check if the current password matches the expected password
-	local encoded_current_password update_required=false
-	encoded_current_password=$(encode_password "$OPC_SERVER_PASSWORD")
-	if [ "$current_password" != "$encoded_current_password" ]; then
-		log_info "Current OPC Server password does not match the expected value. Will update with new password."
-		update_required=true
-	fi
+	# Generate new password hash for internal user
+	local new_password_hash
+	new_password_hash=$(generate_salted_hash "$OPC_SERVER_PASSWORD")
 
-	if [ "$update_required" = true ]; then
-		# Generate new password hash for internal user
-		local new_password_hash
-		new_password_hash=$(generate_salted_hash "$OPC_SERVER_PASSWORD")
+	# Update internal user password
+	sqlite3 "${DB_LOCATION}" "UPDATE INTERNALUSERTABLE SET PASSWORD='$new_password_hash' WHERE USERNAME='opcua'"
 
-		# Update internal user password
-		sqlite3 "${DB_LOCATION}" "UPDATE INTERNALUSERTABLE SET PASSWORD='$new_password_hash' WHERE USERNAME='$username'"
+	# Encode password for OPC UA connection
+	local encoded_password
+	encoded_password=$(encode_password "$OPC_SERVER_PASSWORD")
 
-		# Encode password for OPC UA connection
-		local encoded_password
-		encoded_password=$(encode_password "$OPC_SERVER_PASSWORD")
+	# Update OPC UA connection password
+	sqlite3 "${DB_LOCATION}" "UPDATE OPCUACONNECTIONSETTINGS SET PASSWORD='$encoded_password', KEYSTOREALIASPASSWORD='$encoded_password' WHERE ENDPOINTURL='opc.tcp://localhost:62541'"
 
-		# Update OPC UA connection password
-		sqlite3 "${DB_LOCATION}" "UPDATE OPCUACONNECTIONSETTINGS SET PASSWORD='$encoded_password', KEYSTOREALIASPASSWORD='$encoded_password' WHERE SERVERSETTINGSID=$server_settings_id"
-
-		log_info "Password updated successfully for user $username in both INTERNALUSERTABLE and OPCUACONNECTIONSETTINGS"
-	fi
+	log_info "OPC UA server password updated successfully"
 }
 
 ###############################################################################

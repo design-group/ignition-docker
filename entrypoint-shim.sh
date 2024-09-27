@@ -56,11 +56,20 @@ main() {
 	# Generate or use provided encoding key
 	setup_encoding_key
 
-	# Set opcua password
-	opc_ua_password_sync
+    # Handle existing passwords in the IDB
+    if [ "$HANDLE_EXISTING_PASSWORDS" = "true" ]; then
+        if [ "$PRETRUNCATE_IDB_TABLES" = "true" ]; then
+            /usr/local/bin/handle-existing-idb-passwords.sh -t
+        else
+            /usr/local/bin/handle-existing-idb-passwords.sh -d
+        fi
+    fi
 
-	# Add database connections
-	add_database_connections
+    # Set opcua password
+    opc_ua_password_sync
+
+    # Add database connections
+    add_database_connections
 
 	# Add IDP adapters
     add_idp_adapters

@@ -14,11 +14,12 @@ DB_LOCATION=${DB_LOCATION:-"${IGNITION_INSTALL_LOCATION}/data/db/config.idb"}
 # Main function to process and add database connections
 ###############################################################################
 main() {
-	if [ -z "${GATEWAY_ENCODING_KEY:-}" ]; then
-		log_error "GATEWAY_ENCODING_KEY is not set"
-		exit 1
-	fi
-	process_connection_files
+    if [ -z "${GATEWAY_ENCODING_KEY:-}" ]; then
+        log_error "GATEWAY_ENCODING_KEY is not set"
+        exit 1
+    fi
+
+    process_connection_files
 }
 
 ###############################################################################
@@ -37,15 +38,6 @@ process_connection_files() {
 	done
 }
 
-###############################################################################
-# Encode password using GATEWAY_ENCODING_KEY
-###############################################################################
-encode_password() {
-	local password="$1"
-	local encoded_password
-	encoded_password=$(/usr/local/bin/encode-password.sh -k "$GATEWAY_ENCODING_KEY" -p "$password")
-	echo "$encoded_password"
-}
 
 ###############################################################################
 # Get translator ID for a given translator name
@@ -100,7 +92,8 @@ UPDATE DATASOURCES SET
     CONNECTURL='$connect_url',
     USERNAME='$username',
     PASSWORDE='$encoded_password',
-    CONNECTIONPROPS='$connection_props'
+    CONNECTIONPROPS='$connection_props',
+    ENABLED=True
 WHERE DATASOURCES_ID=$existing_id;
 EOF
 		log_info "Updated existing datasource: $name"
@@ -118,13 +111,14 @@ INSERT INTO DATASOURCES (
     TESTONRETURN, TESTWHILEIDLE, EVICTIONRATE, EVICTIONTESTS, EVICTIONTIME,
     FAILOVERPROFILEID, FAILOVERMODE, SLOWQUERYLOGTHRESHOLD, VALIDATIONSLEEPTIME
 ) VALUES (
-    $next_datasource_id, '$name', '$description', $translator_id, $translator_id, 'false',
-    '$connect_url', '$username', '', '$encoded_password', 'true', '$connection_props',
-    '', 'DEFAULT', 0, 8, 8, 0, 5000, 'SELECT 1', 'true',
-    'false', 'false', -1, 3, 1800000, '', 'STANDARD', 60000, 10000
+    $next_datasource_id, '$name', '$description', $translator_id, $translator_id, False,
+    '$connect_url', '$username', '', '$encoded_password', True, '$connection_props',
+    '', 'DEFAULT', 0, 8, 8, 0, 5000, 'SELECT 1', True,
+    False, False, -1, 3, 1800000, '', 'STANDARD', 60000, 10000
 );
 UPDATE SEQUENCES SET val=$next_datasource_id WHERE name='DATASOURCES_SEQ';
 EOF
+		log_info "Added new datasource: $name"
 	fi
 }
 
