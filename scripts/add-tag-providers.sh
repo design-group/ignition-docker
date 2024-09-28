@@ -195,7 +195,7 @@ EOF
 
 			if [ -n "$datasource_name" ]; then
 				datasource_id=$(get_datasource_id "$datasource_name")
-				if ! get_datasource_id "$datasource_name" ; then
+				if ! get_datasource_id "$datasource_name"; then
 					return 1
 				fi
 			else
@@ -264,22 +264,22 @@ EOF
 # Set default values for tag provider settings
 ###############################################################################
 set_default_values() {
-	local json_content="$1"
+    local json_content="$1"
 
-	# Set default values
-	local defaults='{
+    # Set default values
+    local defaults='{
         "enabled": true,
         "allow_backfill": true,
         "enable_tag_reference_store": true,
-        "read_permissions": "AllOf",
-        "write_permissions": "AllOf",
-        "edit_permissions": "AllOf",
+        "read_permissions": "AllOf,",
+        "write_permissions": "AllOf,",
+        "edit_permissions": "AllOf,",
         "allow_storage": true,
         "max_grouping": 0
     }'
 
-	# Merge defaults with existing content, giving priority to existing values
-	echo "$json_content" | jq --argjson defaults "$defaults" '. * $defaults'
+    # Merge defaults with existing content, giving priority to existing values
+    echo "$json_content" | jq --argjson defaults "$defaults" '$defaults * .'
 }
 
 ###############################################################################
