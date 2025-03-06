@@ -1,5 +1,5 @@
 variable "IGNITION_VERSION" {
-    default = "8.1.45"
+    default = "8.1.47"
 }
 
 variable "BASE_IMAGE_PATH" {
