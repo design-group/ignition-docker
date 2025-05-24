@@ -1,7 +1,10 @@
-ARG IGNITION_VERSION="8.1.43"
+ARG IGNITION_VERSION="8.1.48"
 FROM inductiveautomation/ignition:${IGNITION_VERSION:-latest}
 
 USER root
+
+# Install required dependencies
+RUN apt-get update && apt-get install -y sqlite3 unzip zip openssl vim-common jq file && rm -rf /var/lib/apt/lists/*
 
 ENV WORKING_DIRECTORY=${WORKING_DIRECTORY:-/workdir}
 ENV ACCEPT_IGNITION_EULA="Y"
@@ -21,6 +24,9 @@ ENV SYMLINK_PROJECTS=${SYMLINK_PROJECTS:-true}
 ENV SYMLINK_THEMES=${SYMLINK_THEMES:-true}
 ENV ADDITIONAL_DATA_FOLDERS=${ADDITIONAL_DATA_FOLDERS:-}
 
+# Copy scripts
 COPY --chmod=0755 ./entrypoint-shim.sh /usr/local/bin/
+COPY --chmod=0755 ./scripts/register-module.sh /usr/local/bin/
+COPY --chmod=0755 ./scripts/script-utils.sh /usr/local/bin/
 
 ENTRYPOINT [ "entrypoint-shim.sh" ]
